@@ -17,7 +17,7 @@ class LineEditExtended : public QLineEdit
 public:
     LineEditExtended(const int number = 0, QWidget *parent = nullptr);
     int getNumber() const;
-    QString getFilterMemory() const;
+    QString &getFilterMemory();
     void setFilterMemory(const QString &value);
 
 public slots:

@@ -1,16 +1,9 @@
 #ifndef NEWMODEL_H
 #define NEWMODEL_H
 
-#include <QAbstractItemModel>
 #include "protocolprinteritemmodel.h"
+#include <QAbstractItemModel>
 
-///////////////
-enum TypeRemove{
-    up = 1, down = 2
-};
-///////////////
-///
-///
 class ProtocolPrinterHeaderView;
 class NewModel : public QAbstractItemModel
 {
@@ -19,18 +12,21 @@ public:
     NewModel(ProtocolPrinterItemModel *amodel, QObject *parent = nullptr);
     ProtocolPrinterItemModel *model{nullptr};
     ProtocolPrinterHeaderView *filter{nullptr};
+
     QList<QString> getNamesColumns() const;
     QSqlQuery& getQuery();
 
     void setTable(const QString &tableName);
+    void setFilter(const QString &filter);
     void setProtocolFilter(ProtocolPrinterHeaderView *filter);
     void setSignals();
 
-    void removeCacheElements(TypeRemove type, int itemsToFetch);
+    void removeCacheElements(int type, int itemsToFetch);
 
 public slots:
     bool select();
     void reset();
+    void addCacheElements(int scrollCount);
     void magicLoad(int value);
 
 //ProtocolPrinterItemModel
@@ -40,7 +36,9 @@ public:
     virtual int rowCount(const QModelIndex &parent) const override;
     virtual int columnCount(const QModelIndex &parent) const override;
     virtual QVariant data(const QModelIndex &index, int role) const override;
+
     virtual void fetchMore(const QModelIndex &parent) override;
+
     virtual QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     virtual QModelIndex index(int row, int column, const QModelIndex &parent) const override;
     virtual QModelIndex parent(const QModelIndex &child) const override;

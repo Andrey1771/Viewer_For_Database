@@ -1,12 +1,12 @@
 #include "translatordata.h"
+#include "protocolprinteritemmodel.h"
 
 #include <QDateTime>
 #include <QSqlDriver>
 #include <QTableView>
-#include "protocolprinteritemmodel.h"
 
 
-TranslatorData::TranslatorData(const QString &str, const modeDateTime mode)
+TranslatorData::TranslatorData(const QString &str, int number)
 {
     day=0;
     month=0;
@@ -15,7 +15,7 @@ TranslatorData::TranslatorData(const QString &str, const modeDateTime mode)
     minutes=0;
     seconds=0;
 
-    if(!setData(str, mode))
+    if(!setData(str, number))
     {
         day=-1;
         month=-1;
@@ -26,11 +26,11 @@ TranslatorData::TranslatorData(const QString &str, const modeDateTime mode)
     }
 }
 
-bool TranslatorData::setData(const QString &str,const modeDateTime mode)
+bool TranslatorData::setData(const QString &str, int number)
 {
     bool ok = false;
     QString buf = str;
-    if(mode == modeDateTime::Date)
+    if(number == 2)
     {
         seconds = buf.rightRef(buf.size()-buf.lastIndexOf(":")-1).toInt(&ok);// не сработает при 11/1/2016 9:11:04 greger
         buf.truncate(buf.lastIndexOf(":"));
@@ -46,7 +46,7 @@ bool TranslatorData::setData(const QString &str,const modeDateTime mode)
         if(!ok)
             return false;
     }
-    if(mode == modeDateTime::Time)
+    if(number == 1)
     {
         year = buf.rightRef(buf.size()-buf.lastIndexOf("/")-1).toInt(&ok);
         buf.truncate(buf.lastIndexOf("/"));
@@ -63,7 +63,7 @@ bool TranslatorData::setData(const QString &str,const modeDateTime mode)
             return false;
     }
 
-    if(mode == modeDateTime::TimeDate)
+    if(number == 3)
     {
         seconds = buf.rightRef(buf.size()-buf.lastIndexOf(":")-1).toInt(&ok);// не сработает при 11/1/2016 9:11:04 greger
         buf.truncate(buf.lastIndexOf(":"));
@@ -97,23 +97,23 @@ bool TranslatorData::setData(const QString &str,const modeDateTime mode)
     return true;
 }
 
-QString TranslatorData::repairQString(const QString& str2, const modeDateTime mode)// 11/01/2016 09:11:04-12/01/2016 12:11:26
+QString TranslatorData::repairQString(const QString& str2, int k)// 11/01/2016 09:11:04-12/01/2016 12:11:26
 {
     QString str = "";
-    TranslatorData dataQString(str2, mode);
-    if(mode == modeDateTime::Time)
+    TranslatorData dataQString(str2, k);
+    if(k == 1)
     {
         str = QString::number(dataQString.day).rightJustified(2,'0') + ".";
         str += QString::number(dataQString.month).rightJustified(2,'0') + ".";
         str += QString::number(dataQString.year).rightJustified(4,'0');
     }
-    if(mode == modeDateTime::Date)
+    if(k == 2)
     {
         str = QString::number(dataQString.hours).rightJustified(2,'0') + ":";
         str += QString::number(dataQString.minutes).rightJustified(2,'0') + ":";
         str += QString::number(dataQString.seconds).rightJustified(2,'0');
     }
-    if(mode == modeDateTime::TimeDate)
+    if(k==3)
     {
         str = QString::number(dataQString.hours).rightJustified(2,'0') + ":";
         str += QString::number(dataQString.minutes).rightJustified(2,'0') + ":";
@@ -132,8 +132,8 @@ QString TranslatorData::check(const QString &list0, const QString &list1, int li
     QDateTime dateTime[2];
     QList <QDateTime> list2;
 
-    dateTime[0] = QDateTime::fromString(TranslatorData::repairQString(list0, modeDateTime::TimeDate), "HH:mm:ss dd.MM.yyyy");
-    dateTime[1] = QDateTime::fromString(TranslatorData::repairQString(list1, modeDateTime::TimeDate), "HH:mm:ss dd.MM.yyyy");
+    dateTime[0] = QDateTime::fromString(TranslatorData::repairQString(list0,3), "HH:mm:ss dd.MM.yyyy");
+    dateTime[1] = QDateTime::fromString(TranslatorData::repairQString(list1,3), "HH:mm:ss dd.MM.yyyy");
 
     if(type == 1)
         dateTime[1] = QDateTime::fromString("23:59:59 31.12.9999", "HH:mm:ss dd.MM.yyyy");
@@ -143,11 +143,11 @@ QString TranslatorData::check(const QString &list0, const QString &list1, int li
     QSqlTableModel *protocolPrinterItemModel = static_cast<QSqlTableModel*>(model);
 
     if(dateTime[0].isValid() && dateTime[1].isValid())
-        return filterMemoryCreator(list0, list1, lineNumber , model, type2, dateTime[0], dateTime[1], modeDateTime::TimeDate);
+        return filterMemoryCreator(list0, list1, lineNumber , model, type2, dateTime[0], dateTime[1], 0);
     else
     {
-        dateTime[0] = QDateTime::fromString(TranslatorData::repairQString(list0, modeDateTime::Time), "dd.MM.yyyy");
-        dateTime[1] = QDateTime::fromString(TranslatorData::repairQString(list1, modeDateTime::Time), "dd.MM.yyyy");
+        dateTime[0] = QDateTime::fromString(TranslatorData::repairQString(list0, 1), "dd.MM.yyyy");
+        dateTime[1] = QDateTime::fromString(TranslatorData::repairQString(list1, 1), "dd.MM.yyyy");
 
         if(type == 1)
             dateTime[1] = QDateTime::fromString("31.12.9999", "dd.MM.yyyy");
@@ -156,12 +156,12 @@ QString TranslatorData::check(const QString &list0, const QString &list1, int li
 
         if(dateTime[0].isValid() && dateTime[1].isValid())
         {
-            return filterMemoryCreator(list0, list1, lineNumber , model, type2, dateTime[0], dateTime[1], modeDateTime::Time);
+            return filterMemoryCreator(list0, list1, lineNumber , model, type2, dateTime[0], dateTime[1], 1);
         }
         else
         {
-            dateTime[0] = QDateTime::fromString(TranslatorData::repairQString(list0, modeDateTime::Date), "HH:mm:ss");
-            dateTime[1] = QDateTime::fromString(TranslatorData::repairQString(list1, modeDateTime::Date), "HH:mm:ss");
+            dateTime[0] = QDateTime::fromString(TranslatorData::repairQString(list0, 2), "HH:mm:ss");
+            dateTime[1] = QDateTime::fromString(TranslatorData::repairQString(list1, 2), "HH:mm:ss");
 
             if(type == 1)
                 dateTime[1] = QDateTime::fromString("23:59:59", "HH:mm:ss");
@@ -172,12 +172,12 @@ QString TranslatorData::check(const QString &list0, const QString &list1, int li
             {
                 return QString();
             }
-            return filterMemoryCreator(list0, list1, lineNumber , model, type2, dateTime[0], dateTime[1], modeDateTime::Date);
+            return filterMemoryCreator(list0, list1, lineNumber , model, type2, dateTime[0], dateTime[1], 2);
         }
     }
 }
 
-QString TranslatorData::filterMemoryCreator(const QString &list0, const QString &list1, int lineNumber , QAbstractItemModel *model, const QString& type2, QDateTime& dateTime0, QDateTime& dateTime1, const modeDateTime type)
+QString TranslatorData::filterMemoryCreator(const QString &list0, const QString &list1, int lineNumber , QAbstractItemModel *model, const QString& type2, QDateTime& dateTime0, QDateTime& dateTime1, int type)
 {
     ProtocolPrinterItemModel *protocolPrinterItemModel = dynamic_cast<class ProtocolPrinterItemModel*>(model);
     assert(protocolPrinterItemModel != nullptr);
@@ -190,12 +190,12 @@ QString TranslatorData::filterMemoryCreator(const QString &list0, const QString 
     protocolPrinterItemModel->getQuery().first();
     for (int i=0; i<rowCount; ++i)
     {
-        list2.push_back(QDateTime::fromString(TranslatorData::repairQString(protocolPrinterItemModel->getQuery().value(lineNumber).toString(), modeDateTime::TimeDate), "HH:mm:ss dd.MM.yyyy"));
+        list2.push_back(QDateTime::fromString(TranslatorData::repairQString(protocolPrinterItemModel->getQuery().value(lineNumber).toString(), 3), "HH:mm:ss dd.MM.yyyy"));
         protocolPrinterItemModel->getQuery().next();
     }
     switch(type)
     {
-    case modeDateTime::TimeDate:
+    case 0:
     {
         // Дата и время
         if(type2 == "<" || type2 == ">")
@@ -218,7 +218,7 @@ QString TranslatorData::filterMemoryCreator(const QString &list0, const QString 
         req+="))";
         break;
     }
-    case modeDateTime::Date:
+    case 1:
     {
         //Дата  5/1/3377 - 5/1/3877
         if(type2 == "<" || type2 == ">")
@@ -240,7 +240,7 @@ QString TranslatorData::filterMemoryCreator(const QString &list0, const QString 
         req+="))";
         break;
     }
-    case modeDateTime::Time:
+    case 2:
     {
         //Время
         if(type2 == "<" || type2 == ">")

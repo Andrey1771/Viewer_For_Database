@@ -34,8 +34,16 @@ public slots:
     bool createConnection(const QString& fileName);
     void disconnect();
 
+    //XML
+    void onFileMenuActionTriggered(QAction* action);
+    void onOpenDBAction();
+    void onExportDBAction();
+    void onQuitAction();
+    //XML
 private:
     Ui::MainWindow *ui {nullptr};
+
+    bool dbIsOpen(QSqlDatabase& db);
 
     void setPerson();
     void setItems();
@@ -48,6 +56,7 @@ private:
     void hideColumnsModel();
     void saveDb(const QString& databaseName);
     const QString loadDb();
+    QList<QString> getNamesTables();
 
     void updateScrollBar(int count);
 

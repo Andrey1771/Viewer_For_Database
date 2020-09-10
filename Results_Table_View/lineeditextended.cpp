@@ -28,7 +28,7 @@ LineEditExtended::LineEditExtended(const int number, QWidget *parent) : QLineEdi
     clearButton->hide();
 }
 
-QString LineEditExtended::getFilterMemory() const
+QString& LineEditExtended::getFilterMemory()
 {
     return filterMemory;
 }

@@ -10,6 +10,7 @@
 
 #include <QSqlRecord>
 #include "protocolprinteritemmodel.h"
+#include <QDebug>
 const QStringList TableNames{"Visual Inspections", "Suspect lists of SRUs", "Acceptance Test Reports", "Scenario Test Results"};// Те таблицы, которые будут поддерживать фильтр с временем
 
 ProtocolPrinterHeaderView::ProtocolPrinterHeaderView(QTableView *parent) : QHeaderView (Qt::Horizontal, parent)
@@ -140,55 +141,178 @@ void ProtocolPrinterHeaderView::generateFilters(int number, bool showFirst)
 //
 void ProtocolPrinterHeaderView::send()
 {
+    enum class SpecColumnsNumb{
+        VisualInspections = 7,
+        SuspectlistsofSRUs = 7,
+        AcceptanceTestReports = 9,
+        ScenarioTestResults = 8
+    };
+
+
     LineEditExtended *line = dynamic_cast<LineEditExtended*>(QObject::sender());
 
     QString str = line->text();
-    if((this->model->tableName() == TableNames[0]) && (line->getNumber() == 7))//"Visual Inspections"
+    qDebug() << "Номер " << line->getNumber();
+    if((this->model->tableName() == TableNames[0]) && (line->getNumber() == int(SpecColumnsNumb::VisualInspections)))//"Visual Inspections"
     {
-        ProtocolPrinterHeaderView::checksFilter(str, line, 1);
+
+        ProtocolPrinterHeaderView::checksFilter(model, model2, str, line->getFilterMemory(), getFilterMemoryList(/*LineVect*/), line->getNumber(), LineVect.size(), 1);
+        if(model2 != nullptr)
+            setPrimaryFilter(makePrimaryFilter(model));
         return;
     }
 
-    if(this->model->tableName() == TableNames[1] && (line->getNumber() == 7))//"Suspect lists of SRUs"
+    if(this->model->tableName() == TableNames[1] && (line->getNumber() == int(SpecColumnsNumb::SuspectlistsofSRUs)))//"Suspect lists of SRUs"
     {
-        ProtocolPrinterHeaderView::checksFilter(str, line, 2);
+        ProtocolPrinterHeaderView::checksFilter(model, model2, str, line->getFilterMemory(), getFilterMemoryList(), line->getNumber(), LineVect.size(), 2);
+        if(model2 != nullptr)
+            setPrimaryFilter(makePrimaryFilter(model));
         return;
     }
 
-    if(this->model->tableName() == TableNames[2] && (line->getNumber() == 9))//"Acceptance Test Reports"
+    if(this->model->tableName() == TableNames[2] && (line->getNumber() == int(SpecColumnsNumb::AcceptanceTestReports)))//"Acceptance Test Reports"
     {
-        ProtocolPrinterHeaderView::checksFilter(str, line, 3);
+        ProtocolPrinterHeaderView::checksFilter(model, model2, str, line->getFilterMemory(), getFilterMemoryList(), line->getNumber(), LineVect.size(), 3);
+        if(model2 != nullptr)
+            setPrimaryFilter(makePrimaryFilter(model));
         return;
     }
 
-    if(this->model->tableName() == TableNames[3] && (line->getNumber() == 8))//"Scenario Test Results"
+    if(this->model->tableName() == TableNames[3] && (line->getNumber() == int(SpecColumnsNumb::ScenarioTestResults)))//"Scenario Test Results"
     {
-        ProtocolPrinterHeaderView::checksFilter(str, line, 4);
+        ProtocolPrinterHeaderView::checksFilter(model, model2, str, line->getFilterMemory(), getFilterMemoryList(), line->getNumber(), LineVect.size(), 4);
+        if(model2 != nullptr)
+            setPrimaryFilter(makePrimaryFilter(model));
         return;
     }
 
-    ProtocolPrinterHeaderView::checksFilter(str, line, 0);
+    ProtocolPrinterHeaderView::checksFilter(model, model2, str, line->getFilterMemory(), getFilterMemoryList(), line->getNumber(), LineVect.size(), 0);
+    if(model2 != nullptr)
+        setPrimaryFilter(makePrimaryFilter(model));
 }
 
+//QList<QString&> ProtocolPrinterHeaderView::getFilterMemoryList(QVector<LineEditExtended *> lineVect)
+//{
+//    QList<QString&> list;
+//    for(auto var : lineVect)
+//        list << var->getFilterMemory();
+//    return list;
+//}
 
-void ProtocolPrinterHeaderView::checksFilter(const QString &str, LineEditExtended *line, int type)
+QList<QString *> ProtocolPrinterHeaderView::getFilterMemoryList()
 {
+    QList<QString*> list;
+    for(auto var : LineVect)
+        list << &var->getFilterMemory();
+    return list;
+}
+///TODO перенести в отдельный класс, избавиться от лишних переменных, а также избавиться от лишней функции
+void ProtocolPrinterHeaderView::checksFilter(QList<QString>headerList, const QString &str, QString &filterMemory, QList<QString *> filterMemoryList, int lineNumber, int count, int type)
+{
+//    qDebug() << "STR: " << str;
+//    if(type == 0)//Для текста
+//    {
+//        if(str!="")
+//        {
+//            model->setFilter("");
+//            filterMemory = (("`"+model->headerData(lineNumber, Qt::Orientation::Horizontal).toString()+"`"+" like '%"+str+"%'"));
+//            model->setFilter(filtersRQData(filterMemoryList));
+//        }
+//        else
+//        {
+//            model->setFilter("");
+//            filterMemory = ("");
+//            model->setFilter(filtersRQData(filterMemoryList));
+//        }
+
+
+//        return;
+//    }
+//    if((type > 0 && type < 5))// Для времени
+//    {
+//        if(str.lastIndexOf("-") == -1)
+//        {
+//            if(str!="")
+//            {
+//                model->setFilter("");
+//                filterMemory = (("`"+model->headerData(lineNumber, Qt::Orientation::Horizontal).toString()+"`"+" like '%"+str+"%'"));
+//                model->setFilter(filtersRQData(filterMemoryList));
+//            }
+//            else
+//            {
+//                model->setFilter("");
+//                filterMemory = ("");
+//                model->setFilter(filtersRQData(filterMemoryList));
+//            }
+//        }
+
+//        QStringList list;
+//        list = str.split("-");
+
+//        if(list.size() == 2) // 11/1/2016 9:11:04 - 05/2/2016 12:11:26
+//        {
+//            model->setFilter("");
+//            filterMemory = (TranslatorData::check(list[0], list[1], lineNumber, model, "<="));// [a:b]
+//            model->setFilter(filtersRQData(filterMemoryList));
+//        }
+
+//        // > 11/1/2016 9:11:04
+//        list = str.split(">");
+//        if(list.size() == 2)
+//        {
+//            model->setFilter("");
+//            filterMemory = (TranslatorData::check(list[1], "", lineNumber, model, ">", 1));
+//            model->setFilter(filtersRQData(filterMemoryList));
+//        }
+
+//        // < 11/1/2016 9:11:04
+//        list = str.split("<");
+//        if(list.size() == 2)
+//        {
+//            model->setFilter("");
+//            filterMemory = (TranslatorData::check("", list[1], lineNumber, model, "<", 2));
+//            model->setFilter(filtersRQData(filterMemoryList));
+//        }
+
+//        // >= 11/1/2016 9:11:04
+//        list = str.split(">=");
+//        if(list.size() == 2)
+//        {
+//            model->setFilter("");
+//            filterMemory = (TranslatorData::check(list[1], "", lineNumber, model, ">=", 1));
+//            model->setFilter(filtersRQData(filterMemoryList));
+//        }
+
+//        // <= 11/1/2016 9:11:04
+//        list = str.split("<=");
+//        if(list.size() == 2)
+//        {
+//            model->setFilter("");
+//            filterMemory = (TranslatorData::check("", list[1], lineNumber, model, "<=", 2));
+//            model->setFilter(filtersRQData(filterMemoryList));
+//        }
+
+//        return;
+//    }
+}
+void ProtocolPrinterHeaderView::checksFilter(ProtocolPrinterItemModel *model, ProtocolPrinterItemModel* model2, const QString &str, QString &filterMemory, QList<QString *> filterMemoryList, int lineNumber, int count, int type)
+{///TODO перенести в отдельный класс, избавиться от лишних переменных
+    qDebug() << "STR: " << str;
     if(type == 0)//Для текста
     {
         if(str!="")
         {
             model->setFilter("");
-            line->setFilterMemory(("`"+model->headerData(line->getNumber(), Qt::Orientation::Horizontal).toString()+"`"+" like '%"+str+"%'"));
-            model->setFilter(filtersRQData());
+            filterMemory = (("`"+model->headerData(lineNumber, Qt::Orientation::Horizontal).toString()+"`"+" like '%"+str+"%'"));
+            model->setFilter(filtersRQData(filterMemoryList));
         }
         else
         {
             model->setFilter("");
-            line->setFilterMemory("");
-            model->setFilter(filtersRQData());
+            filterMemory = ("");
+            model->setFilter(filtersRQData(filterMemoryList));
         }
-        if(model2 != nullptr)
-            setPrimaryFilter(makePrimaryFilter());
+
 
         return;
     }
@@ -199,14 +323,14 @@ void ProtocolPrinterHeaderView::checksFilter(const QString &str, LineEditExtende
             if(str!="")
             {
                 model->setFilter("");
-                line->setFilterMemory(("`"+model->headerData(line->getNumber(),Qt::Orientation::Horizontal).toString()+"`"+" like '%"+str+"%'"));
-                model->setFilter(filtersRQData());
+                filterMemory = (("`"+model->headerData(lineNumber, Qt::Orientation::Horizontal).toString()+"`"+" like '%"+str+"%'"));
+                model->setFilter(filtersRQData(filterMemoryList));
             }
             else
             {
                 model->setFilter("");
-                line->setFilterMemory("");
-                model->setFilter(filtersRQData());
+                filterMemory = ("");
+                model->setFilter(filtersRQData(filterMemoryList));
             }
         }
 
@@ -216,8 +340,8 @@ void ProtocolPrinterHeaderView::checksFilter(const QString &str, LineEditExtende
         if(list.size() == 2) // 11/1/2016 9:11:04 - 05/2/2016 12:11:26
         {
             model->setFilter("");
-            line->setFilterMemory(TranslatorData::check(list[0], list[1], line->getNumber(), model, "<="));// [a:b]
-            model->setFilter(filtersRQData());
+            filterMemory = (TranslatorData::check(list[0], list[1], lineNumber, model, "<="));// [a:b]
+            model->setFilter(filtersRQData(filterMemoryList));
         }
 
         // > 11/1/2016 9:11:04
@@ -225,8 +349,8 @@ void ProtocolPrinterHeaderView::checksFilter(const QString &str, LineEditExtende
         if(list.size() == 2)
         {
             model->setFilter("");
-            line->setFilterMemory(TranslatorData::check(list[1], "", line->getNumber(), model, ">", 1));
-            model->setFilter(filtersRQData());
+            filterMemory = (TranslatorData::check(list[1], "", lineNumber, model, ">", 1));
+            model->setFilter(filtersRQData(filterMemoryList));
         }
 
         // < 11/1/2016 9:11:04
@@ -234,8 +358,8 @@ void ProtocolPrinterHeaderView::checksFilter(const QString &str, LineEditExtende
         if(list.size() == 2)
         {
             model->setFilter("");
-            line->setFilterMemory(TranslatorData::check("", list[1], line->getNumber(), model, "<", 2));
-            model->setFilter(filtersRQData());
+            filterMemory = (TranslatorData::check("", list[1], lineNumber, model, "<", 2));
+            model->setFilter(filtersRQData(filterMemoryList));
         }
 
         // >= 11/1/2016 9:11:04
@@ -243,8 +367,8 @@ void ProtocolPrinterHeaderView::checksFilter(const QString &str, LineEditExtende
         if(list.size() == 2)
         {
             model->setFilter("");
-            line->setFilterMemory(TranslatorData::check(list[1], "", line->getNumber(), model, ">=", 1));
-            model->setFilter(filtersRQData());
+            filterMemory = (TranslatorData::check(list[1], "", lineNumber, model, ">=", 1));
+            model->setFilter(filtersRQData(filterMemoryList));
         }
 
         // <= 11/1/2016 9:11:04
@@ -252,22 +376,131 @@ void ProtocolPrinterHeaderView::checksFilter(const QString &str, LineEditExtende
         if(list.size() == 2)
         {
             model->setFilter("");
-            line->setFilterMemory(TranslatorData::check("", list[1], line->getNumber(), model, "<=", 2));
-            model->setFilter(filtersRQData());
-        }
-
-        if(model2 != nullptr)// заменить
-        {
-            setPrimaryFilter(makePrimaryFilter());
+            filterMemory = (TranslatorData::check("", list[1], lineNumber, model, "<=", 2));
+            model->setFilter(filtersRQData(filterMemoryList));
         }
 
         return;
     }
 }
+//void ProtocolPrinterHeaderView::checksFilter(const QString &str, LineEditExtended *line, int type)
+//{
+//    qDebug() << "STR: " <<str;
+//    if(type == 0)//Для текста
+//    {
+//        if(str!="")
+//        {
+//            model->setFilter("");
+//            line->setFilterMemory(("`"+model->headerData(line->getNumber(), Qt::Orientation::Horizontal).toString()+"`"+" like '%"+str+"%'"));
+//            model->setFilter(filtersRQData());
+//        }
+//        else
+//        {
+//            model->setFilter("");
+//            line->setFilterMemory("");
+//            model->setFilter(filtersRQData());
+//        }
+//        if(model2 != nullptr)
+//            setPrimaryFilter(makePrimaryFilter());
+
+//        return;
+//    }
+//    if((type > 0 && type < 5))// Для времени
+//    {
+//        if(str.lastIndexOf("-") == -1)
+//        {
+//            if(str!="")
+//            {
+//                model->setFilter("");
+//                line->setFilterMemory(("`"+model->headerData(line->getNumber(),Qt::Orientation::Horizontal).toString()+"`"+" like '%"+str+"%'"));
+//                model->setFilter(filtersRQData());
+//            }
+//            else
+//            {
+//                model->setFilter("");
+//                line->setFilterMemory("");
+//                model->setFilter(filtersRQData());
+//            }
+//        }
+
+//        QStringList list;
+//        list = str.split("-");
+
+//        if(list.size() == 2) // 11/1/2016 9:11:04 - 05/2/2016 12:11:26
+//        {
+//            model->setFilter("");
+//            line->setFilterMemory(TranslatorData::check(list[0], list[1], line->getNumber(), model, "<="));// [a:b]
+//            model->setFilter(filtersRQData());
+//        }
+
+//        // > 11/1/2016 9:11:04
+//        list = str.split(">");
+//        if(list.size() == 2)
+//        {
+//            model->setFilter("");
+//            line->setFilterMemory(TranslatorData::check(list[1], "", line->getNumber(), model, ">", 1));
+//            model->setFilter(filtersRQData());
+//        }
+
+//        // < 11/1/2016 9:11:04
+//        list = str.split("<");
+//        if(list.size() == 2)
+//        {
+//            model->setFilter("");
+//            line->setFilterMemory(TranslatorData::check("", list[1], line->getNumber(), model, "<", 2));
+//            model->setFilter(filtersRQData());
+//        }
+
+//        // >= 11/1/2016 9:11:04
+//        list = str.split(">=");
+//        if(list.size() == 2)
+//        {
+//            model->setFilter("");
+//            line->setFilterMemory(TranslatorData::check(list[1], "", line->getNumber(), model, ">=", 1));
+//            model->setFilter(filtersRQData());
+//        }
+
+//        // <= 11/1/2016 9:11:04
+//        list = str.split("<=");
+//        if(list.size() == 2)
+//        {
+//            model->setFilter("");
+//            line->setFilterMemory(TranslatorData::check("", list[1], line->getNumber(), model, "<=", 2));
+//            model->setFilter(filtersRQData());
+//        }
+
+//        if(model2 != nullptr)// заменить
+//        {
+//            setPrimaryFilter(makePrimaryFilter());
+//        }
+
+//        return;
+//    }
+//}
 /**
  * Формирует строку SQL запроса на основе сохр SQL запросов в памяти
  */
-const QString ProtocolPrinterHeaderView::filtersRQData()
+QString ProtocolPrinterHeaderView::filtersRQData(QList<QString*> filterMemoryList)
+{
+    QString str = "";
+    bool k = false;
+    for (auto filterMemory : filterMemoryList)
+    {
+        if(*filterMemory != "")
+        {
+            if(!k)
+            {
+                str += *filterMemory;
+                k = true;
+            }
+            else
+                str += " AND " + *filterMemory;
+        }
+    }
+    qDebug() << str;
+    return str;
+}
+/*const QString ProtocolPrinterHeaderView::filtersRQData()
 {
     QString str = "";
     bool k = false;
@@ -284,9 +517,9 @@ const QString ProtocolPrinterHeaderView::filtersRQData()
                 str += " AND " + LineVect[i]->getFilterMemory();
         }
     }
-
+    qDebug() << str;
     return str;
-}
+}*/
 //
 
 //
@@ -331,7 +564,7 @@ void ProtocolPrinterHeaderView::setPrimaryFilter(const QList<int> &list, bool re
 /**
  * Формирует строку для дополнительного фильтра
  */
-QList<int> ProtocolPrinterHeaderView::makePrimaryFilter()
+QList<int> ProtocolPrinterHeaderView::makePrimaryFilter(ProtocolPrinterItemModel* model)
 {
     QList <int> list;
     int i = 0;
@@ -341,11 +574,13 @@ QList<int> ProtocolPrinterHeaderView::makePrimaryFilter()
         if(!model->record(i).value("Session ID").isValid())
             return list;
         list << model->record(i).value("Session ID").toInt();
+        qDebug() << "List: " << list;
         i++;
     }
+    return list;
 }
 /**
- *  очищает дополнительный фильтр, сохраняет в памяти и отправляет сигнал о изменении строки
+ *  очищает дополнительный фильтр, сохраняет в памяти и отправляет сигнал об изменении строки
  */
 void ProtocolPrinterHeaderView::updateFilter2()
 {
@@ -369,22 +604,24 @@ void ProtocolPrinterHeaderView::rowSelect(QModelIndexList modelIndexListSelected
     {
         for (int j = 0; j < listSelect.size(); ++j)
         {
-            if(listSelect[j] == modelIndexListSelected.at(i).row() + 1)
+            if(listSelect[j] == modelIndexListSelected.at(i).data().toInt())
             {
                 listSelect.removeAt(j);
                 j--;
             }
         }
-        listSelect << modelIndexListSelected.at(i).row() + 1;
+        qDebug() << "list Select: " << listSelect;
+        qDebug() << "list Select Model: " << modelIndexListSelected.at(i).data().toInt();
+        listSelect << modelIndexListSelected.at(i).data().toInt();
     }
 
     for (int i = 0; i < modelIndexListDeselected.size(); i += LineVect.size() - 1) // LineVect.size() - 1 - количество колонок
     {
-        listSelect.removeOne(modelIndexListDeselected.at(i).row() + 1);
+        listSelect.removeOne(modelIndexListDeselected.at(i).data().toInt());
     }
     if(listSelect.size() == 0)
     {
-        setPrimaryFilter(makePrimaryFilter());
+        setPrimaryFilter(makePrimaryFilter(model));
         return;
     }
     setPrimaryFilter(listSelect);

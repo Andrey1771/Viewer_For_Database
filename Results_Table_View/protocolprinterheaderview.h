@@ -20,9 +20,16 @@ public:
     void launch(QTableView *parent);
 
     void setSecondFilterDatabase(ProtocolPrinterItemModel *model2, ProtocolPrinterHeaderView *header2);
-    const QString filtersRQData();
     virtual void startSetSettings(QTableView *parent);
 
+    QVector<LineEditExtended*> getLineVect();
+
+    ///TODO перенести в отдельный класс
+    static QString filtersRQData(QList<QString*> filterMemoryList);//const QString filtersRQData(QString &filterMemory, int count);
+    static void checksFilter(ProtocolPrinterItemModel* model, ProtocolPrinterItemModel* model2, const QString& str, QString& filterMemory, QList<QString*> filterMemoryList, int lineNumber, int count, int type);
+    static void checksFilter(QList<QString>headerList, const QString &str, QString &filterMemory, QList<QString *> filterMemoryList, int lineNumber, int count, int type);
+    static QList<int> makePrimaryFilter(ProtocolPrinterItemModel* model);
+    QList<QString*> getFilterMemoryList(/*QVector<LineEditExtended*> lineVect*/);
 protected:
      void updateGeometries() override;
 
@@ -48,10 +55,10 @@ protected:
     QString primaryMemory;
     QList<int> listSelect;
 
-    inline void checksFilter(const QString& str, LineEditExtended *line, int type);
+    //inline void checksFilter(const QString& str, LineEditExtended *line, int type);
 
     void setPrimaryFilter(const QList <int>& list, bool reset = false);
-    QList<int> makePrimaryFilter();
+
 
 signals:
     void updateFiltersComp();

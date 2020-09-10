@@ -12,6 +12,7 @@ public:
     int allRowCount();
 
     QList<QString> getNamesColumns() const;
+    QList<QString> getHeaderTable(const QString &tableName);
     QSqlQuery& getQuery();
     // QAbstractItemModel interface
 public:
@@ -20,7 +21,6 @@ public:
     // QSqlTableModel interface
 public:
     void setTable(const QString &tableName) override;
-
 private:
     QSqlQuery query;
     QList <QString> namesColumns;

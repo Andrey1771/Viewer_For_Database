@@ -25,14 +25,7 @@ QVariant ProtocolPrinterItemModel::headerData(int section, Qt::Orientation orien
 void ProtocolPrinterItemModel::setTable(const QString &tableName)
 {
     namesColumns.clear();
-    query.exec("select * from '"+ tableName+ "';"); // Приходится делать запрос, чтобы узнать структуру таблицы
-    int count = query.record().count(); // упростить
-    countColumns = count;
-    for (int i=0; i < count; ++i)
-    {
-        namesColumns << query.record().field(i).name();
-    }
-
+    namesColumns = getHeaderTable(tableName);
     QSqlTableModel::setTable(tableName);
     emit TableChanged();
 }
@@ -47,6 +40,19 @@ QList<QString> ProtocolPrinterItemModel::getNamesColumns() const
     return namesColumns;
 }
 
+QList<QString> ProtocolPrinterItemModel::getHeaderTable(const QString &tableName)
+{
+    QList<QString> namesColumns;
+    query.exec("select * from '"+ tableName+ "';"); // Приходится делать запрос, чтобы узнать структуру таблицы
+    int count = query.record().count(); // упростить
+    countColumns = count;
+    for (int i=0; i < count; ++i)
+    {
+        namesColumns << query.record().field(i).name();
+    }
+    return namesColumns;
+}
+
 int ProtocolPrinterItemModel::allRowCount()
 {
     if ( this->database().driver()->hasFeature(QSqlDriver::QuerySize)) //SQLite не поддерживает size()
@@ -55,30 +61,6 @@ int ProtocolPrinterItemModel::allRowCount()
     }
     else
     {
-        getQuery().exec("ANALYZE");
-        getQuery().next();
-        getQuery().exec("select * from SQLITE_STAT1;");
-        getQuery().next();
-        do
-        {
-//            if(!getQuery().value(0).isValid())
-//            {
-//                getQuery().exec("SELECT COUNT(*) FROM `" + tableName() + "`;");// Может в системной таблице БД содержится количество строк? Нужно к ней обратиться
-//                getQuery().next();
-//                qDebug() << getQuery().value(0).toInt();
-//                return getQuery().value(0).toInt();
-//            }
-            if(getQuery().value(0) == tableName())
-            {
-                int i = getQuery().value(2).toInt();
-                getQuery().exec();
-                getQuery().exec("DROP TABLE sqlite_stat1;");
-                getQuery().next();
-                return i;
-            }
-        }
-        while(getQuery().next());
-
         getQuery().exec("SELECT COUNT(*) FROM `" + tableName() + "`;");// Может в системной таблице БД содержится количество строк? Нужно к ней обратиться
         getQuery().next();
         return getQuery().value(0).toInt();

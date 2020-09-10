@@ -1,6 +1,9 @@
 #include "mainwindow.h"
 #include "protocolprinterheaderview.h"
 #include "protocolprinteritemmodel.h"
+#include "newmodel.h"
+#include "protocolprinterheaderviewextended.h"
+#include "printdialog.h"
 
 #include <QHeaderView>
 #include <QMessageBox>
@@ -20,10 +23,11 @@
 //#include "randomizeddatabase.h"
 
 #include <QSortFilterProxyModel>
+#include <QTextDocument>
+#include <QDateTime>
+#include <QAction>
+#include <QScrollBar>
 
-#include "newmodel.h"
-#include "protocolprinterheaderviewextended.h"
-#include "protocolprinterscrollbar.h"
 
 const QStringList databaseTypes{"sqlite3"};
 
@@ -31,6 +35,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 {
     ui->setupUi(this);
     launchSetSettings();
+
+    connect(ui->menuFile, &QMenu::triggered, this, &MainWindow::onFileMenuActionTriggered);
+
+        //    QVariantHash c;
+        //    c.insert("path_to_db", "...");
+        //    ICollection coll(c);
+        //    CollectionFromJsonLoader loader("./results_table_view_settings.json");
+        //    CollectionToJsonSaver saver("./results_table_view_settings.json");
+        //    coll.saveCollection(&saver);
+        //    coll.loadCollection(&loader);
 
 }
 
@@ -49,8 +63,8 @@ void MainWindow::launchSetSettings()
     numberTable = 0;
 
     //log
-    ui->plainTextEdit->hide();
-    ui->log_Label->setText("");
+    //ui->plainTextEdit->hide();
+    //ui->log_Label->setText("");
 
     //comboBoxs
     ui->DBType_comboBox->addItems(databaseTypes);
@@ -73,7 +87,7 @@ void MainWindow::launchSetSettings()
 
 
         //ScrollBar
-    ProtocolPrinterScrollBar *scrollBar = new ProtocolPrinterScrollBar(Qt::Orientation::Vertical, ui->tableView);
+    QScrollBar *scrollBar = new QScrollBar(Qt::Orientation::Vertical, ui->tableView);
     ui->tableView->setVerticalScrollBar(scrollBar);
         //ScrollBar
     //TableView
@@ -118,7 +132,7 @@ void MainWindow::launchSetSettings()
     ui->Directory_lineEdit->setText(newModel->model->database().databaseName());
 
     //connects
-    connect(ui->pushButtonHideShowLog, &QPushButton::clicked, this, &MainWindow::hideShowLog);
+    //connect(ui->pushButtonHideShowLog, &QPushButton::clicked, this, &MainWindow::hideShowLog);
     connect(ui->TableName_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTable(int)));
     connect(ui->Directory_pushButton, &QPushButton::clicked, this, &MainWindow::launchWizard);
     connect(ui->Directory_lineEdit, SIGNAL(returnPressed()), this, SLOT(createConnection()));
@@ -128,21 +142,29 @@ void MainWindow::launchSetSettings()
     connect(ui->tableView_Sup, &ProtocolPrinterTableView::selectRow, filter_Sup, &ProtocolPrinterHeaderView::rowSelect);
     connect(ui->tableView_Sup, &ProtocolPrinterTableView::selectionSet, filter_Sup, &ProtocolPrinterHeaderView::updateFilter2);
 
-    connect(ui->tableView->verticalScrollBar(), &ProtocolPrinterScrollBar::valueChanged, this, &MainWindow::sliderUpdateModel);
+    connect(ui->tableView->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::sliderUpdateModel);
     //Logger
 
 }
+
+QList<QString> MainWindow::getNamesTables()
+{
+    QList<QString> list;
+    QSqlQuery query;
+    query.exec("select * from sqlite_master where type = 'table';");
+    while (query.next())
+    {
+        list << query.value(1).toString();
+    }
+    return list;
+}
+
 void MainWindow::fillingComboBoxTableName()
 {
     ui->TableName_comboBox->clear();
     Names.clear();
 
-    QSqlQuery query;
-    query.exec("select * from sqlite_master where type = 'table';");
-    while (query.next())
-    {
-        Names << query.value(1).toString();
-    }
+    Names = getNamesTables();
     Names.removeOne("sqlite_sequence");
     Names.removeOne("Acceptance Test Reports");
 
@@ -267,22 +289,22 @@ void MainWindow::setTable(int index)
     }
 }
 
-void MainWindow::hideShowLog()
-{
+//void MainWindow::hideShowLog()
+//{
 
-    if(!ui->plainTextEdit->isHidden())
-    {
-        ui->pushButtonHideShowLog->setText("Show log");
-        ui->plainTextEdit->hide();
-        ui->log_Label->setText("");
-    }
-    else
-    {
-        ui->pushButtonHideShowLog->setText("Hide log");
-        ui->plainTextEdit->show();
-        ui->log_Label->setText("");
-    }
-}
+////    if(!ui->plainTextEdit->isHidden())
+////    {
+////        ui->pushButtonHideShowLog->setText("Show log");
+////        ui->plainTextEdit->hide();
+////        ui->log_Label->setText("");
+////    }
+////    else
+////    {
+////        ui->pushButtonHideShowLog->setText("Hide log");
+////        ui->plainTextEdit->show();
+////        ui->log_Label->setText("");
+////    }
+//}
 
 void MainWindow::hideShowSup()
 {
@@ -312,6 +334,18 @@ void MainWindow::launchWizard()
     // Вызов make в случае done(true)
 }
 
+bool MainWindow::dbIsOpen(QSqlDatabase& db)
+{
+    if(!db.open())
+    {
+        QMessageBox::critical(nullptr, QObject::tr("Cannot open database"),
+            QObject::tr("Unable to establish a database connection.\n"
+                        "Click Cancel to exit."), QMessageBox::Cancel);
+        return false;
+    }
+    return true;
+}
+
 bool MainWindow::createConnection(const QString& fileName)
 {
     QString str = fileName;
@@ -322,13 +356,8 @@ bool MainWindow::createConnection(const QString& fileName)
     db = QSqlDatabase :: addDatabase("QSQLITE"); // В зависимости от типа базы данных нужно будет дополнить и изменить
     db.setDatabaseName(fileName);
 
-    if(!db.open())
-    {
-        QMessageBox::critical(nullptr, QObject::tr("Cannot open database"),
-            QObject::tr("Unable to establish a database connection.\n"
-                        "Click Cancel to exit."), QMessageBox::Cancel);
+    if(!dbIsOpen(db))
         return false;
-    }
     newModel = new NewModel(new ProtocolPrinterItemModel, this);
     newModel->filter = filter;
     modelSup = new ProtocolPrinterItemModel(this);
@@ -350,7 +379,7 @@ void MainWindow::disconnect()
             QString databaseName = newModel->model->database().databaseName();
             QString connectionName = db.connectionName();
 
-            delete newModel->model;//Работает неправильно, отходит от идеи
+            delete newModel->model;//Работает неправильно
             delete newModel;
             delete modelSup;
             newModel->model = nullptr;
@@ -360,8 +389,8 @@ void MainWindow::disconnect()
             db.close();
             db = QSqlDatabase();
 
-            db.removeDatabase(databaseName);
-            db.removeDatabase(connectionName);
+            //db.removeDatabase(databaseName);
+            //db.removeDatabase(connectionName);
 
             ui->TableName_comboBox->clear();
             Names.clear();
@@ -370,4 +399,49 @@ void MainWindow::disconnect()
             ui->groupBoxTable->setTitle("Table");
             saveDb(databaseName);
         }
+}
+
+void MainWindow::onFileMenuActionTriggered(QAction *action)
+{
+    qDebug() << "action triggered: " << action->text();
+
+    /// TODO: make actions properly
+
+    if (action->text() == tr("Open DB"))
+    {
+        onOpenDBAction();
+    }
+    else if (action->text() == tr("Export Report from DB"))
+    {
+        onExportDBAction();
+    }
+    else if (action->text() == tr("Quit"))
+    {
+        onQuitAction();
+    }
+}
+
+void MainWindow::onOpenDBAction()
+{
+    launchWizard();
+}
+
+void MainWindow::onExportDBAction()
+{
+    if(!dbIsOpen(db))
+        return;
+    if(newModel == nullptr || modelSup == nullptr || filter == nullptr || !db.isOpen())
+    {
+        qDebug() << "onExportDbAction error";
+        return;
+    }
+
+    PrintDialog* printDialog = new PrintDialog(getNamesTables(), modelSup, filter, db, this);
+    printDialog->exec();
+
+}
+
+void MainWindow::onQuitAction()
+{
+    close();
 }

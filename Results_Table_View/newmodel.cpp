@@ -1,9 +1,11 @@
 #include "newmodel.h"
+#include "protocolprinterheaderview.h"
+#include "protocolprinteritemmodel.h"
 
 #include <QDebug>
 #include <QTimer>
-#include "protocolprinterheaderview.h"
-#include "protocolprinteritemmodel.h"
+
+
 NewModel::NewModel(ProtocolPrinterItemModel *amodel, QObject *parent) : QAbstractItemModel(parent)
 {
     this->model = amodel;
@@ -24,8 +26,8 @@ void NewModel::setTable(const QString &tableName)
     modelAllRowCount = model->allRowCount();
     reset();
     model->setTable(tableName);
-    QString str = filter->filtersRQData();// filtersMemory
 
+    QString str = ProtocolPrinterHeaderView::filtersRQData(filter->getFilterMemoryList());// filtersMemory
     if(!str.isEmpty())
         model->getQuery().exec("SELECT COUNT(*) FROM `" + model->tableName() + "` WHERE " + str + ";");// AS Count
     else
@@ -37,6 +39,12 @@ void NewModel::setTable(const QString &tableName)
     return;
 }
 
+void NewModel::setFilter(const QString &filter)
+{
+    qDebug() << filter;
+    reset();
+}
+
 void NewModel::setProtocolFilter(ProtocolPrinterHeaderView *filter)
 {
     this->filter = filter;
@@ -44,14 +52,15 @@ void NewModel::setProtocolFilter(ProtocolPrinterHeaderView *filter)
 
 void NewModel::setSignals()
 {
+    //connect(this->model, &ProtocolPrinterItemModel::filterChanged, this, &NewModel::reset);
     connect(this->model, &ProtocolPrinterItemModel::filterChanged, this, &NewModel::updateRowsFilters);
 }
 
 void NewModel::updateRowsFilters()
 {
     reset();
-
-    QString str = filter->filtersRQData();// filtersMemory
+    qDebug() << ProtocolPrinterHeaderView::filtersRQData(filter->getFilterMemoryList());
+    QString str = ProtocolPrinterHeaderView::filtersRQData(filter->getFilterMemoryList());// filtersMemory
     if(!str.isEmpty())
         model->getQuery().exec("SELECT COUNT(*) FROM `" + model->tableName() + "` WHERE " + str + ";");// AS Count
     else
@@ -84,6 +93,12 @@ void NewModel::reset()
     cacheSize = 0;
     endResetModel();
 }
+
+void NewModel::addCacheElements(int scrollCount)
+{
+
+}
+
 
 int NewModel::rowCount(const QModelIndex &parent) const
 {
@@ -127,11 +142,11 @@ void NewModel::fetchMore(const QModelIndex &parent)
 /**
  * type: 1 - up, 2 - down
  */
-void NewModel::removeCacheElements(TypeRemove type, int itemsToFetch)// удаляет лишние элементы, которые вышли за предел cache
+void NewModel::removeCacheElements(int type, int itemsToFetch)// удаляет лишние элементы, которые вышли за предел cache
 {
     switch (type)
     {
-    case up:
+    case 1:
     {
         //Если лишние элементы находятся сверху
         if(cacheSize > cacheMaxSize)
@@ -143,7 +158,7 @@ void NewModel::removeCacheElements(TypeRemove type, int itemsToFetch)// удал
         }
         break;
     }
-    case down:
+    case 2:
     {
         //Если лишние элементы находятся снизу
         if(cacheSize > cacheMaxSize)
@@ -172,7 +187,7 @@ void NewModel::fetchMoreSecond()
 
     //Начало добавления строк в cache из БД
     beginInsertRows(QModelIndex(), 0, itemsToFetch - 1);// не уверен в числах
-    QString str = filter->filtersRQData();// filtersMemory
+    QString str = ProtocolPrinterHeaderView::filtersRQData(filter->getFilterMemoryList());// filtersMemory
     if(!str.isEmpty())
         model->getQuery().exec("SELECT * FROM `"+model->tableName()+"` WHERE ROWID <= " + QString::number(seek - cacheSize) + " AND " + str + ";");
     else
@@ -198,10 +213,11 @@ void NewModel::fetchMoreSecond()
     endInsertRows();
     //Конец добавления строк в cache из БД
 
+
     QPair<QVector<QString>, int> buf;
     if(cacheSize - itemsToFetch*2 == 0)// если количество подгружаемых элементов меньше cacheSize, то останутся элементы, которые будут находится не на своем месте
     {
-        removeCacheElements(TypeRemove::down, itemsToFetch);
+        removeCacheElements(2, itemsToFetch);
         for(int i = cacheSize - 1; i >  -1 ; --i)
         {
             buf = cacheData.at(i);
@@ -211,7 +227,7 @@ void NewModel::fetchMoreSecond()
     }
     else
     {
-        removeCacheElements(TypeRemove::up, itemsToFetch);
+        removeCacheElements(1, itemsToFetch);
         int i = cacheSize - 1;
         for(; i > cacheSize - itemsToFetch -1 ; --i)
         {
@@ -282,11 +298,12 @@ void NewModel::magicLoad(int value)
         return;
 
     beginInsertRows(QModelIndex(), magic[0], magic[1] - 1);// -1 под вопросом
-    QString str = filter->filtersRQData();// filtersMemory
+    QString str = ProtocolPrinterHeaderView::filtersRQData(filter->getFilterMemoryList());// filtersMemory
     if(!str.isEmpty())// сделать так везде
         model->getQuery().exec("SELECT * FROM `"+model->tableName()+"` WHERE ROWID > " + QString::number(magic[0]) + " AND " + str + ";");
     else
         model->getQuery().exec("SELECT * FROM `"+model->tableName()+"` WHERE ROWID > " + QString::number(magic[0]) + ";");
+
 
     QVector<QString> vector;
     model->getQuery().next();
