@@ -11,6 +11,13 @@ class LineEditExtended;
 class ProtocolPrinterHeaderView : public QHeaderView
 {
     Q_OBJECT
+    /// TODO перенести в отдельный файл все констаты связанные с БД и таблицами
+    const QStringList tablesNamesList{"Acceptance Test Reports"};// Те таблицы, которые будут поддерживать фильтр с временем
+    enum class SpecColumnsNumb{
+        SesRunDateTime = 9,
+        SesRunTotalTime = 10
+    };
+    ///
 public:
     explicit ProtocolPrinterHeaderView(QTableView *parent = nullptr);
     // QWidget interface
@@ -25,9 +32,9 @@ public:
     QVector<LineEditExtended*> getLineVect();
 
     ///TODO перенести в отдельный класс
-    static QString filtersRQData(QList<QString*> filterMemoryList);//const QString filtersRQData(QString &filterMemory, int count);
-    static void checksFilter(ProtocolPrinterItemModel* model, ProtocolPrinterItemModel* model2, const QString& str, QString& filterMemory, QList<QString*> filterMemoryList, int lineNumber, int count, int type);
-    static void checksFilter(QList<QString>headerList, const QString &str, QString &filterMemory, QList<QString *> filterMemoryList, int lineNumber, int count, int type);
+    static QString filtersRQData(QList<QString*> filterMemoryList);
+    static void checksFilter(ProtocolPrinterItemModel* model, ProtocolPrinterItemModel* model2, ProtocolPrinterHeaderView *headerView, const QString& str, QString& filterMemory, QList<QString*> filterMemoryList, int lineNumber, int type);
+    static void checksFilter(QList<QString>& sessionIdList/*Может быть пустым*/, QList<QString>headerList, const QString &str, QString &filterMemory, QList<QDateTime>& listAllDateTimeDb, QList<QString *> filterMemoryList, int lineNumber, int type);
     static QList<int> makePrimaryFilter(ProtocolPrinterItemModel* model);
     QList<QString*> getFilterMemoryList(/*QVector<LineEditExtended*> lineVect*/);
 protected:
@@ -57,7 +64,7 @@ protected:
 
     //inline void checksFilter(const QString& str, LineEditExtended *line, int type);
 
-    void setPrimaryFilter(const QList <int>& list, bool reset = false);
+    static void setPrimaryFilter(ProtocolPrinterHeaderView *headerView, const QList <int>& list, bool reset = false);
 
 
 signals:

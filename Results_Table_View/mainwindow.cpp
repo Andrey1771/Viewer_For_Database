@@ -14,9 +14,9 @@
 #include <QtSql/QSqlQueryModel>
 #include <QtSql/QSqlTableModel>
 #include <QtSql/QSqlQuery>
-//#include <ICollection.h>
-//#include <CollectionFromJsonLoader.h>
-//#include <CollectionToJsonSaver.h>
+#include <ICollection.h>
+#include <CollectionFromJsonLoader.h>
+#include <CollectionToJsonSaver.h>
 
 #include <QDebug>
 //Test
@@ -28,6 +28,7 @@
 #include <QAction>
 #include <QScrollBar>
 
+#include <QtConcurrent/QtConcurrentRun>
 
 const QStringList databaseTypes{"sqlite3"};
 
@@ -38,20 +39,20 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     connect(ui->menuFile, &QMenu::triggered, this, &MainWindow::onFileMenuActionTriggered);
 
-        //    QVariantHash c;
-        //    c.insert("path_to_db", "...");
-        //    ICollection coll(c);
-        //    CollectionFromJsonLoader loader("./results_table_view_settings.json");
-        //    CollectionToJsonSaver saver("./results_table_view_settings.json");
-        //    coll.saveCollection(&saver);
-        //    coll.loadCollection(&loader);
+    QVariantHash c;
+    c.insert("path_to_db", "...");
+    ICollection coll(c);
+    CollectionFromJsonLoader loader("./results_table_view_settings.json");
+    CollectionToJsonSaver saver("./results_table_view_settings.json");
+    coll.saveCollection(&saver);
+    coll.loadCollection(&loader);
 
 }
 
 MainWindow::~MainWindow()
 {
-    //if(this->newModel->model->database().databaseName() != "")
-    //    saveDb(this->newModel->model->database().databaseName());
+    if(this->newModel->model->database().databaseName() != "")
+        saveDb(this->newModel->model->database().databaseName());
     delete newModel->model;
     delete newModel;
     delete ui;
@@ -79,17 +80,17 @@ void MainWindow::launchSetSettings()
     //TableView
     ui->tableView->setModel(newModel);
     filter = new ProtocolPrinterHeaderViewExtended(ui->tableView);
-    hideColumnsModel();
+    hideColumnsModels();
     ui->tableView->horizontalHeader()->resizeSections(QHeaderView::ResizeMode::Stretch);
     ui->tableView->resizeRowsToContents();
     ui->tableView->setHorizontalHeader(filter);
     newModel->setProtocolFilter(filter);
 
 
-        //ScrollBar
+    //ScrollBar
     QScrollBar *scrollBar = new QScrollBar(Qt::Orientation::Vertical, ui->tableView);
     ui->tableView->setVerticalScrollBar(scrollBar);
-        //ScrollBar
+    //ScrollBar
     //TableView
 
     //TableView_Sup
@@ -116,20 +117,21 @@ void MainWindow::launchSetSettings()
     qDebug() << str;
     if(!createConnection(str))
     {
-
         QMessageBox::warning(nullptr, QObject::tr("Cannot open database"),
-            QObject::tr("Unable to establish a database connection.\n"
-                        "Click Cancel to exit."), QMessageBox::Cancel);
+                             QObject::tr("Unable to establish a database connection.\n"
+                                         "Click Cancel to exit."), QMessageBox::Cancel);
+
     }
     else
     {
         addDatabase();
+        ///
+        ui->groupBoxTable->setTitle("Table " + newModel->model->tableName());///TODO Bug - краш при неудачном запуске из коллекции
+        ///
+        //lineEdit
+        ui->Directory_lineEdit->setText(newModel->model->database().databaseName());
     }
 
-    ui->groupBoxTable->setTitle("Table " + newModel->model->tableName());
-
-    //lineEdit
-    ui->Directory_lineEdit->setText(newModel->model->database().databaseName());
 
     //connects
     //connect(ui->pushButtonHideShowLog, &QPushButton::clicked, this, &MainWindow::hideShowLog);
@@ -184,7 +186,7 @@ void MainWindow::addDatabase()
         ui->Connect_label->setText("Connected to \"" + newModel->model->database().databaseName().remove("."+ui->DBType_comboBox->currentText()) + "\" database");
     ui->tableView->setModel(newModel);
 
-    hideColumnsModel();
+    hideColumnsModels();
 
     ui->tableView->horizontalHeader()->resizeSections(QHeaderView::ResizeMode::Stretch);
     ui->tableView->resizeRowsToContents();
@@ -206,9 +208,9 @@ void MainWindow::addDatabase()
     ui->tableView_Sup->setModel(modelSup);
     modelSup->select();
 
-    ui->tableView_Sup->hideColumn(0);
-    for (int i = 8; i < modelSup->columnCount(); ++i)
-        ui->tableView_Sup->hideColumn(i);
+    ui->tableView_Sup->hideColumn(0);// скрываем Session ID
+    //for (int i = 8; i < modelSup->columnCount(); ++i)
+    //    ui->tableView_Sup->hideColumn(i);
 
     ui->tableView_Sup->horizontalHeader()->resizeSections(QHeaderView::ResizeMode::Stretch);
     ui->tableView_Sup->resizeRowsToContents();
@@ -218,38 +220,48 @@ void MainWindow::addDatabase()
     //TableView_Sup
 }
 
-void MainWindow::hideColumnsModel()
+void MainWindow::hideColumnsModels()
 {
-    QStringList list {"Session ID", "Project Name", "LRU Name", "LRU S/N", "ATE P/N", "ATE S/N", "ATE S/W Ver"};
+
     QStringList  list2 = newModel->getNamesColumns();
     for (int i = 0; i < list2.size(); ++i)
     {
-        foreach (QString badName, list)
+        foreach (QString badName, hidenColNewModelList)
         {
             if(badName == list2[i])
                 ui->tableView->hideColumn(i);
+        }
+    }
+
+    list2 = modelSup->getNamesColumns();
+    for (int i = 0; i < list2.size(); ++i)
+    {
+        foreach (QString badName, hidenColModelSupList)
+        {
+            if(badName == list2[i])
+                ui->tableView_Sup->hideColumn(i);
         }
     }
 }
 
 void MainWindow::saveDb(const QString& databaseName)
 {
-//    QVariantHash c;
-//    c.insert("path_to_db", databaseName);
-//    ICollection coll(c);
-//    CollectionToJsonSaver saver("results_table_view_settings.json");//./results_table_view_settings.json
-//    coll.saveCollection(&saver);
+    QVariantHash c;
+    c.insert("path_to_db", databaseName);
+    ICollection coll(c);
+    CollectionToJsonSaver saver("results_table_view_settings.json");//./results_table_view_settings.json
+    coll.saveCollection(&saver);
 }
 
 const QString MainWindow::loadDb()
 {
-//    QVariantHash c;
-//    ICollection coll(c);
-//    CollectionFromJsonLoader loader("results_table_view_settings.json");
-//    coll.loadCollection(&loader);
-//    QString str = coll.getCollection().value("path_to_db").toString();
-//    return str;
-    return "";
+    QVariantHash c;
+    ICollection coll(c);
+    CollectionFromJsonLoader loader("results_table_view_settings.json");
+    coll.loadCollection(&loader);
+    QString str = coll.getCollection().value("path_to_db").toString();
+    return str;
+    //return "";
 }
 
 void MainWindow::updateScrollBar(int count)
@@ -269,7 +281,7 @@ void MainWindow::setTable(int index)
         newModel->setTable(Names[index]);
         newModel->select();
 
-        hideColumnsModel();
+        hideColumnsModels();
 
         ui->tableView->resizeColumnsToContents();
         ui->tableView->horizontalHeader()->resizeSections(QHeaderView::ResizeMode::Stretch);
@@ -327,8 +339,8 @@ void MainWindow::launchWizard()
     if(!createConnection(strFileName))
     {
         QMessageBox::critical(nullptr, QObject::tr("Cannot open database"),
-            QObject::tr("Unable to establish a database connection.\n"
-                        "Click Cancel to exit."), QMessageBox::Cancel);
+                              QObject::tr("Unable to establish a database connection.\n"
+                                          "Click Cancel to exit."), QMessageBox::Cancel);
         return;// ошибка открытия БД
     }
     // Вызов make в случае done(true)
@@ -339,8 +351,8 @@ bool MainWindow::dbIsOpen(QSqlDatabase& db)
     if(!db.open())
     {
         QMessageBox::critical(nullptr, QObject::tr("Cannot open database"),
-            QObject::tr("Unable to establish a database connection.\n"
-                        "Click Cancel to exit."), QMessageBox::Cancel);
+                              QObject::tr("Unable to establish a database connection.\n"
+                                          "Click Cancel to exit."), QMessageBox::Cancel);
         return false;
     }
     return true;
@@ -405,7 +417,7 @@ void MainWindow::onFileMenuActionTriggered(QAction *action)
 {
     qDebug() << "action triggered: " << action->text();
 
-    /// TODO: make actions properly
+    /// TODO: make actions property
 
     if (action->text() == tr("Open DB"))
     {

@@ -1,4 +1,5 @@
 #include "xmlprintsupport.h"
+#include "xmlprintprogress.h"
 
 #include <QDebug>
 #include <QSqlQuery>
@@ -8,6 +9,22 @@
 #include <QSqlError>
 #include <QPair>
 #include <QDateTime>
+#include <QtConcurrent/QtConcurrentRun>
+#include <QtConcurrent/QtConcurrentMap>
+#include <QTimer>
+#include <QFuture>
+#include "printdialog.h"
+//#include <QTest>
+#include <QFutureWatcher>
+
+XMLPrintSupport::XMLPrintSupport(QObject *parent) : QObject (parent)
+{
+    stop = false;
+}
+
+XMLPrintSupport::~XMLPrintSupport()
+{
+}
 
 QStringList XMLPrintSupport::TableColumnNames(NASKTableType type)
 {
@@ -108,32 +125,12 @@ QString XMLPrintSupport::TableCaption(NASKTableType type)
     case NASKTableType::Count:
         break;
     }
-    return {};}
+    return {};
+}
 
-struct ScenarioData
-{
-    struct TestData
-    {
-        QStringList txtTestData;
-        bool passState;
-    };
-    QList<TestData> testData;
-    bool scenarioPassState {true};
-
-    bool appendTestData(const QStringList& tData, bool status) {
-        if (tData.size() < 5) {
-            qDebug() << "Test data is corrupted!!!";
-            return false;
-        }
-
-        testData.append({tData, status});
-        scenarioPassState &= status;
-        return true;
-    }
-};
 
 /// NOTE: scenario name should be unique!!!
-static QHash<QString, ScenarioData> s_scenariosData;     // scenario name - scenario tests data
+static QHash<QString, XMLPrintSupport::ScenarioData> s_scenariosData;     // scenario name - scenario tests data
 
 const QString HTMLTableFoot = "\n</table>\n<br>\n<br>\n<br>\n</p>";
 const QString XMLTableFoot = "\n</Table>"
@@ -155,8 +152,7 @@ const QString XMLTableFoot = "\n</Table>"
         "\n\t<ProtectObjects>False</ProtectObjects>"
         "\n\t<ProtectScenarios>False</ProtectScenarios>"
         "\n</WorksheetOptions>"
-        "</Worksheet>"
-        ;
+        "</Worksheet>";
 const QString XMLRowHead = "\n\t<Row ss:AutoFitHeight=\"1\">";// Автонастройка высоты строк
 const QString XMLRowCellData[] = {"\n\t\t<Cell ss:Index=\"%1\" ss:StyleID=\"s62\"><Data ss:Type=\"String\">%2</Data></Cell>",//Acceptance Test Report Left Column
                                   "\n\t\t<Cell ss:Index=\"%1\" ss:StyleID=\"s63\"><Data ss:Type=\"String\">%2</Data></Cell>",//Acceptance Test Report Right Column
@@ -164,7 +160,8 @@ const QString XMLRowCellData[] = {"\n\t\t<Cell ss:Index=\"%1\" ss:StyleID=\"s62\
                                   "\n\t\t<Cell ss:Index=\"%1\" ss:StyleID=\"s66\"><Data ss:Type=\"String\">%2</Data></Cell>",//Default style cell Выравниваем по ss:Horizontal = Center
                                   "\n\t\t<Cell ss:Index=\"%1\" ss:StyleID=\"s67\"><Data ss:Type=\"String\">%2</Data></Cell>",//Default style Head
                                   "\n\t\t<Cell ss:Index=\"%1\" ss:StyleID=\"s68\"><Data ss:Type=\"String\">%2</Data></Cell>",//Status Passed
-                                  "\n\t\t<Cell ss:Index=\"%1\" ss:StyleID=\"s69\"><Data ss:Type=\"String\">%2</Data></Cell>"};//Status Failed
+                                  "\n\t\t<Cell ss:Index=\"%1\" ss:StyleID=\"s69\"><Data ss:Type=\"String\">%2</Data></Cell>"
+                                 };//Status Failed
 QList<QString> XMLStyles = {"\n<Style ss:ID=\"Default\" ss:Name=\"Normal\">"
                             "\n<Alignment ss:Vertical=\"Bottom\"/>"
                             "\n<Borders/>"
@@ -288,23 +285,25 @@ QList<QString> namesFilesExp;
 QString XMLPrintSupport::HTMLTableHead(const QString& tableName)
 {
     QString html = "\n<p><table bordercolor=\"black\" border=\"1\" bgcolor=\"white\" width=\"100%\">";
-    html += QString("\n<caption align=\"center\">%1</caption>").arg(shieldingToXML(tableName));
+    html += QString("\n<caption align=\"center\">%1</caption>").arg(ShieldingToXML(tableName));
     return html;
 }
 
 void widthColumnsSet(QString& html, QList<float> sizeList)
 {
-    for (auto var : sizeList) {
+    for (auto var : sizeList)
+    {
         html += "\n<Column ss:AutoFitWidth=\"0\" ss:Width=\"" + QString::number(double(var)) + "\"/>";
     }
 }
 void offsetRowsSet(QString& html, unsigned int count)
 {
-    for (unsigned int i = 0; i < count; ++i) {
+    for (unsigned int i = 0; i < count; ++i)
+    {
         html += XMLRowHead + XMLRowFoot;
     }
 }
-QString XMLPrintSupport::shieldingToXML(QString xmlData)
+QString XMLPrintSupport::ShieldingToXML(QString xmlData)
 {
     xmlData.replace("&", "&amp;");
     xmlData.replace("<", "&lt;");
@@ -313,28 +312,30 @@ QString XMLPrintSupport::shieldingToXML(QString xmlData)
     xmlData.replace("\"", "&quot;");
     return xmlData;
 }
-QString XMLPrintSupport::checkAndFixSizeName(QString name)/// Todo переделать с QFonts
+QString XMLPrintSupport::CheckAndFixSizeName(QString name)/// Todo переделать с QFonts
 {
     const int maxLenght = 32;
-    if(name.length() > maxLenght)
+    if (name.length() > maxLenght)
     {
         int size = name.length() + 1 + 3/*3 точки*/ - maxLenght;
         int pointer;
-        if(size % 2)
+        if (size % 2)
         {
-            pointer = (name.length() - int(size) - 1)/2;
+            pointer = (name.length() - int(size) - 1) / 2;
         }
         else
         {
-            pointer = (name.length() - size)/2;
+            pointer = (name.length() - size) / 2;
         }
-        int tempP = pointer;
-        if(name.at(pointer - 1) == " ")
+
+        if (name.at(pointer - 1) == " ")
         {
             pointer--;
         }
-        if(name.at(pointer + size) == " ")
+        if (name.at(pointer + size) == " ")
+        {
             size++;
+        }
 
         name.remove(pointer, size);
         name.insert(pointer, "...");
@@ -343,68 +344,77 @@ QString XMLPrintSupport::checkAndFixSizeName(QString name)/// Todo переде�
 }
 QString XMLPrintSupport::XMLTableHead(const QString& tableName)
 {
-    auto tName = checkAndFixSizeName(tableName);
+    auto tName = CheckAndFixSizeName(tableName);
 
-    QString html = QString("\n<Worksheet ss:Name=\"%1\">").arg(shieldingToXML(tName.replace("\"", "'")));
+    QString html = QString("\n<Worksheet ss:Name=\"%1\">").arg(ShieldingToXML(tName.replace("\"", "'")));
     html += QString("\n<Table>");
-    /*
-       AcceptanceTestReports,
-       SuspectListOfSRUs,
-       VisualInspection,
-       SummaryScenarioTestResults,
-       SummaryTestResults,
-       IndividualScenarioResults,
-     */
 
-    if(tableName.toLower() == "acceptance test reports")
+    if (tableName.toLower() == "acceptance test reports")
     {
         QList<float> sizeColumns = {14.25, 213.75, 213.75};
         widthColumnsSet(html, sizeColumns);
         offsetRowsSet(html, 2);
 
         html += XMLRowHead;
-        html += QString("<Cell ss:Index=\"2\" ss:StyleID=\"s64\" ss:MergeAcross=\"1\" ss:MergeDown=\"2\"><Data ss:Type=\"String\">%1</Data></Cell>").arg(shieldingToXML(tableName));
+        html += QString("<Cell ss:Index=\"2\" ss:StyleID=\"s64\" ss:MergeAcross=\"1\" ss:MergeDown=\"2\"><Data ss:Type=\"String\">%1</Data></Cell>").arg(
+                    ShieldingToXML(tableName));
         html += XMLRowFoot;
 
         offsetRowsSet(html, 4);
-    }else if(tableName.toLower() == "suspect lists of srus")
+    }
+    else if (tableName.toLower() == "suspect lists of srus")
     {
         QList<float> sizeColumns = {14.25, 55.5, 39.75, 231.75, 24, 62.25, 595.5};
         widthColumnsSet(html, sizeColumns);
         offsetRowsSet(html, 1);
 
         html += XMLRowHead;
-        html += QString("<Cell ss:Index=\"2\" ss:StyleID=\"s70\" ss:MergeAcross=\"" + QString::number(sizeColumns.length() - 1)/* длина этого списка равна количеству колонок таблицы + 1*/ + "\"><Data ss:Type=\"String\">%1</Data></Cell>").arg(shieldingToXML(tableName));
+        html += QString("<Cell ss:Index=\"2\" ss:StyleID=\"s70\" ss:MergeAcross=\"" + QString::number(
+                            sizeColumns.length() -
+                            1)/* длина этого списка равна количеству колонок таблицы + 1*/ +
+                        "\"><Data ss:Type=\"String\">%1</Data></Cell>").arg(ShieldingToXML(tableName));
         html += XMLRowFoot;
 
-    }else if(tableName.toLower() == "visual inspections")
+    }
+    else if (tableName.toLower() == "visual inspections")
     {
         QList<float> sizeColumns = {14.25, 55.25, 119.25, 150.75, 140.25};
         widthColumnsSet(html, sizeColumns);
         offsetRowsSet(html, 1);
 
         html += XMLRowHead;
-        html += QString("<Cell ss:Index=\"2\" ss:StyleID=\"s70\" ss:MergeAcross=\"" + QString::number(sizeColumns.length() - 1)/* длина этого списка равна количеству колонок таблицы + 1*/ + "\"><Data ss:Type=\"String\">%1</Data></Cell>").arg(shieldingToXML(tableName));
+        html += QString("<Cell ss:Index=\"2\" ss:StyleID=\"s70\" ss:MergeAcross=\"" + QString::number(
+                            sizeColumns.length() -
+                            1)/* длина этого списка равна количеству колонок таблицы + 1*/ +
+                        "\"><Data ss:Type=\"String\">%1</Data></Cell>").arg(ShieldingToXML(tableName));
         html += XMLRowFoot;
 
-    }else if(tableName.toLower() == "test result")
+    }
+    else if (tableName.toLower() == "test result")
     {
         QList<float> sizeColumns = {14.25, 55.25, 339.75};
         widthColumnsSet(html, sizeColumns);
         offsetRowsSet(html, 1);
 
         html += XMLRowHead;
-        html += QString("<Cell ss:Index=\"2\" ss:StyleID=\"s70\" ss:MergeAcross=\"" + QString::number(sizeColumns.length() - 1)/* длина этого списка равна количеству колонок таблицы + 1*/ + "\"><Data ss:Type=\"String\">%1</Data></Cell>").arg(shieldingToXML(tableName));
+        html += QString("<Cell ss:Index=\"2\" ss:StyleID=\"s70\" ss:MergeAcross=\"" + QString::number(
+                            sizeColumns.length() -
+                            1)/* длина этого списка равна количеству колонок таблицы + 1*/ +
+                        "\"><Data ss:Type=\"String\">%1</Data></Cell>").arg(ShieldingToXML(tableName));
         html += XMLRowFoot;
 
-    }else
+    }
+    else
     {
         QList<float> sizeColumns = {14.25, 182.25, 51, 51, 51, 51};
         widthColumnsSet(html, sizeColumns);
         offsetRowsSet(html, 1);
 
         html += XMLRowHead;
-        html += QString("<Cell ss:Index=\"2\" ss:StyleID=\"s70\" ss:MergeAcross=\"" + QString::number(sizeColumns.length() - 1)/* длина этого списка равна количеству колонок таблицы + 1*/ + "\"><Data ss:Type=\"String\">%1</Data></Cell>").arg(shieldingToXML(tableName));
+        html += QString("<Cell ss:Index=\"2\" ss:StyleID=\"s70\" ss:MergeAcross=\"" + QString::number(
+                            sizeColumns.length() -
+                            1)/* длина этого списка равна количеству колонок таблицы + 1*/ +
+                        "\"><Data ss:Type=\"String\">%1</Data></Cell>").arg(ShieldingToXML(tableName));
         html += XMLRowFoot;
 
     }
@@ -412,11 +422,23 @@ QString XMLPrintSupport::XMLTableHead(const QString& tableName)
     return html;
 }
 
-bool XMLPrintSupport::ParseTestResults(qlonglong sessionID)
+bool XMLPrintSupport::ParseTestResults(QSqlDatabase& db, qlonglong sessionID, QMap<QString, QString*> filtersMemory)
 {
-    QSqlQuery query;
-    const auto status = query.exec(QString("select * from '%1' where \"Session ID\" = %2;")
-                                   .arg(TableCaption(NASKTableType::SummaryScenarioTestResults)).arg(sessionID));
+    QSqlQuery query(db);
+
+    QString *filter = filtersMemory.value(TableCaption(NASKTableType::SummaryScenarioTestResults), nullptr);
+    bool status;
+    if(filter != nullptr  && *filter != "")
+    {
+        status = query.exec(QString("SELECT * FROM '%1' WHERE `Session ID` = %2")
+                            .arg(TableCaption(NASKTableType::SummaryScenarioTestResults)).arg(sessionID) + " AND " + *filter + ";");
+    }
+    else
+    {
+        status = query.exec(QString("SELECT * FROM '%1' WHERE `Session ID` = %2;")
+                            .arg(TableCaption(NASKTableType::SummaryScenarioTestResults)).arg(sessionID));
+    }
+
     if (!status)
     {
         qDebug() << "DB Query Error: " << query.lastError().text();
@@ -466,25 +488,41 @@ bool XMLPrintSupport::ParseTestResults(qlonglong sessionID)
     return true;
 }
 
-QString XMLPrintSupport::PrintTable_HTML(NASKTableType type, qlonglong sessionID)
+QString XMLPrintSupport::PrintTable_HTML(QSqlDatabase& db, NASKTableType type, qlonglong sessionID, QMap<QString, QString*> filtersMemory)
 {
     QString html;
-    QSqlQuery query;
+    QSqlQuery query(db);
 
-    const auto status = query.exec(QString("select * from '%1' where \"Session ID\" = %2;")
-                                   .arg(TableCaption(type)).arg(sessionID));
-    if (!status)
+    QString *filter = filtersMemory.value(TableCaption(type), nullptr);
+    bool status;
+    if(filter != nullptr)
     {
-        qDebug() << "DB Query Error: " << query.lastError().text();
-        return html;
+        status = query.exec(QString("SELECT * FROM '%1' WHERE `Session ID` = %2")
+                            .arg(TableCaption(type)).arg(sessionID) + " AND " + *filter + ";");
+    }
+    else
+    {
+        status = query.exec(QString("SELECT * FROM '%1' WHERE `Session ID` = %2;")
+                            .arg(TableCaption(type)).arg(sessionID));
     }
 
+    if (!status)
+    {
+        qDebug() << QString("DB Query '%1' Error: ").arg("queryStr") << query.lastError().text();
+        return html;
+    }
+    ////////////////////////
+    if(!query.next())//Query.size() не поддерживается QSQLite, поэтому делаю такое действие для проверки на пустоту таблицы
+        return html;
+    else
+        qDebug() << "query результат предыдущего: " << query.previous();
+    ////////////////////////
     html += HTMLTableHead(TableCaption(type));
 
     html += "\n\t<tr>";
     for (const auto& name : TableColumnNames(type))
     {
-        html += QString("\n\t\t<th align=\"center\">%1</th>").arg(shieldingToXML(name));
+        html += QString("\n\t\t<th align=\"center\">%1</th>").arg(name);
     }
     html += "\n\t</tr>";
 
@@ -495,7 +533,7 @@ QString XMLPrintSupport::PrintTable_HTML(NASKTableType type, qlonglong sessionID
         while (!query.value(index).isNull())
         {
             const auto val = query.value(index).toString();
-            html += QString("\n\t\t<td align=\"center\">%1</td>").arg(shieldingToXML(val));
+            html += QString("\n\t\t<td align=\"center\">%1</td>").arg(val);
             index++;
         }
         html += "\n\t</tr>";
@@ -505,19 +543,36 @@ QString XMLPrintSupport::PrintTable_HTML(NASKTableType type, qlonglong sessionID
     return html;
 }
 
-QString XMLPrintSupport::PrintTable_XML(NASKTableType type, qlonglong sessionID)//Suspect list And Visual Inspections
+QString XMLPrintSupport::PrintTable_XML(QSqlDatabase& db, NASKTableType type, qlonglong sessionID, QMap<QString, QString*> filtersMemory)//Suspect list And Visual Inspections
 {
     QString xml;
-    QSqlQuery query;
+    QSqlQuery query(db);
 
-    const auto status = query.exec(QString("select * from '%1' where \"Session ID\" = %2;")
-                                   .arg(TableCaption(type)).arg(sessionID));
+    QString *filter = filtersMemory.value(TableCaption(type), nullptr);
+
+    bool status;
+    if(filter != nullptr && *filter != "")
+    {
+        status = query.exec(QString("SELECT * FROM '%1' WHERE `Session ID` = %2")
+                            .arg(TableCaption(type)).arg(sessionID) + " AND " + *filter + ";");
+    }
+    else
+    {
+        status = query.exec(QString("SELECT * FROM '%1' WHERE `Session ID` = %2;")
+                            .arg(TableCaption(type)).arg(sessionID));
+    }
+
     if (!status)
     {
         qDebug() << "DB Query Error: " << query.lastError().text();
         return xml;
     }
-
+    ////////////////////////
+    if(!query.next())//Query.size() не поддерживается QSQLite, поэтому делаю такое действие для проверки на пустоту таблицы
+        return xml;
+    else
+        qDebug() << "query результат предыдущего: " << query.previous();
+    ////////////////////////
     xml += XMLTableHead(TableCaption(type));
 
 
@@ -537,13 +592,15 @@ QString XMLPrintSupport::PrintTable_XML(NASKTableType type, qlonglong sessionID)
             xml += XMLRowCellData[4].arg(numberCell).arg(name);
             numberCell++;
 
-            if(name.toLower() == "name")
+            if (name.toLower() == "name")
             {
                 ++numColumnSpecStyle;
                 continue;
             }
-            if(name.toLower() == "requirements")
+            if (name.toLower() == "requirements")
+            {
                 numColumnSpecStyle += 2;
+            }
         }
     }
     xml += XMLRowFoot;
@@ -557,14 +614,21 @@ QString XMLPrintSupport::PrintTable_XML(NASKTableType type, qlonglong sessionID)
             int numberCell = 1 + tableOffset;
             while (!query.value(index).isNull())
             {
-                const auto val = shieldingToXML(query.value(index).toString());
+                const auto val = ShieldingToXML(query.value(index).toString());
 
-                if((numColumnSpecStyle & 1) && EnumColumnSpecStyle(numberCell - (1 + tableOffset)) == EnumColumnSpecStyle::Name)
+                if ((numColumnSpecStyle & 1) && EnumColumnSpecStyle(numberCell - (1 + tableOffset)) == EnumColumnSpecStyle::Name)
+                {
                     xml += XMLRowCellData[2].arg(numberCell).arg(val);
-                else if((numColumnSpecStyle & 2) && EnumColumnSpecStyle(numberCell - (1 + tableOffset)) == EnumColumnSpecStyle::Requirements )
+                }
+                else if ((numColumnSpecStyle & 2)
+                         && EnumColumnSpecStyle(numberCell - (1 + tableOffset)) == EnumColumnSpecStyle::Requirements )
+                {
                     xml += XMLRowCellData[2].arg(numberCell).arg(val);
+                }
                 else
+                {
                     xml += XMLRowCellData[3].arg(numberCell).arg(val);
+                }
 
                 numberCell++;
                 index++;
@@ -577,25 +641,31 @@ QString XMLPrintSupport::PrintTable_XML(NASKTableType type, qlonglong sessionID)
     return xml;
 }
 
-QString XMLPrintSupport::PrintScenarioData_HTML()
+QString XMLPrintSupport::PrintScenarioData_HTML(/*QList<int> pagesNumbersList*/)
 {
     QString html;
+    if(s_scenariosData.keys().isEmpty())
+        return html;
 
     html += HTMLTableHead(TableCaption(NASKTableType::SummaryTestResults));
 
     html += "\n\t<tr>";
     for (const auto& name : TableColumnNames(NASKTableType::SummaryTestResults))
     {
-        html += QString("\n\t\t<th align=\"center\">%1</th>").arg(shieldingToXML(name));
+        html += QString("\n\t\t<th align=\"center\">%1</th>").arg(name);
     }
     html += "\n\t</tr>";
 
-    for (const auto& scenarioName : s_scenariosData.keys())
+    QList<QString> names = s_scenariosData.keys();
+    sorterNames(names);
+
+    for (const auto& scenarioName : names)
     {
+
         html += "\n\t<tr>";
 
         html += QString("\n\t\t<td align=\"center\" width=\"10%\"></td>");          /// TODO: append page number!!!!!
-        html += QString("\n\t\t<td align=\"left\">%1</td>").arg(shieldingToXML(scenarioName));
+        html += QString("\n\t\t<td align=\"left\">%1</td>").arg(scenarioName);
 
         if (s_scenariosData[scenarioName].scenarioPassState)
         {
@@ -613,10 +683,85 @@ QString XMLPrintSupport::PrintScenarioData_HTML()
     return html;
 }
 
-QString XMLPrintSupport::PrintScenarioData_XML()
-{
 
+void XMLPrintSupport::sorterNames(QList<QString>& names)
+{
+    struct MagicCPP
+    {
+        QList<int> numbList;
+        QString name;
+        MagicCPP(const QString& name, QList<int>& numbList)
+        {
+            this->numbList = numbList;
+            this->name = name;
+        }
+        bool operator<(const MagicCPP& right)// используется неявно в std::sort!!!
+        {
+            int i = 0;
+            if(right.numbList.size() != 0)
+            {
+                for (auto var : numbList)
+                {
+
+                    if(var < right.numbList.at(i))
+                    {
+                        return true;
+                    }
+                    if(var > right.numbList.at(i))
+                    {
+                        return false;
+                    }
+
+                    ++i;
+                    if(right.numbList.size() <= i)
+                    {
+                        if(numbList.size() <= i)
+                        {
+                            return name < right.name;
+                        }
+                        return false;
+                    }
+                }
+            }
+            return false;
+        }
+    };
+
+    std::vector<MagicCPP> magicCPPVect;
+    QRegExp regExp("[0-9]{1,}.[0-9]{1,}.[0-9]{1,}");
+    for (auto name : names)
+    {
+        int pos = regExp.indexIn(name);
+        QList<int> numbList;
+        if(pos > -1)
+        {
+            QString value = regExp.capturedTexts().at(0);
+            QList<QString> list = value.split(".");
+
+            for (auto number : list)
+            {
+                numbList.push_back(number.toInt());
+            }
+            magicCPPVect.push_back(MagicCPP(name, numbList));
+        }
+        else
+        {
+            magicCPPVect.push_back(MagicCPP(name, numbList));
+        }
+    }
+    std::sort(magicCPPVect.begin(), magicCPPVect. end());
+    names.clear();
+    for (auto var : magicCPPVect)
+    {
+        names.push_back(var.name);
+    }
+}
+
+QString XMLPrintSupport::PrintScenarioData_XML(int count)
+{
     QString xml;
+    if(s_scenariosData.keys().isEmpty())
+        return xml;
 
     xml += XMLTableHead(TableCaption(NASKTableType::SummaryTestResults));
 
@@ -625,22 +770,26 @@ QString XMLPrintSupport::PrintScenarioData_XML()
         int numberCell = 1 + tableOffset;
         for (const auto& name : TableColumnNames(NASKTableType::SummaryTestResults))
         {
-            xml += XMLRowCellData[4].arg(numberCell).arg(shieldingToXML(name));
+            xml += XMLRowCellData[4].arg(numberCell).arg(ShieldingToXML(name));
             numberCell++;
         }
     }
     xml += XMLRowFoot;
 
-    static int s_pageNum = 1;   /// TODO: append proper page number!!!!!
+    int s_pageNum = 1 + count;   /// TODO: append proper page number!!!!!
     bool faile = false;
-    for (const auto& scenarioName : s_scenariosData.keys())
+
+    QList<QString> names = s_scenariosData.keys();
+    sorterNames(names);
+
+    for (const auto& scenarioName : names)
     {
         xml += XMLRowHead;
         {
             int numberCell = 1 + tableOffset;
             xml += XMLRowCellData[3].arg(numberCell).arg(s_pageNum++);
             numberCell++;
-            xml += XMLRowCellData[2].arg(numberCell).arg(shieldingToXML(scenarioName));
+            xml += XMLRowCellData[2].arg(numberCell).arg(ShieldingToXML(scenarioName));
             numberCell++;
 
             if (s_scenariosData[scenarioName].scenarioPassState)
@@ -658,10 +807,14 @@ QString XMLPrintSupport::PrintScenarioData_XML()
             xml += XMLRowFoot;
         }
     }
-    if(faile)
-        xml += XMLTableFoot.arg("<TabColorIndex>10</TabColorIndex>");//"<TabColorIndex>9</TabColorIndex>"//9
+    if (faile)
+    {
+        xml += XMLTableFoot.arg("<TabColorIndex>10</TabColorIndex>");    //"<TabColorIndex>9</TabColorIndex>"//9
+    }
     else
+    {
         xml += XMLTableFoot.arg("");
+    }
 
     return xml;
 }
@@ -670,14 +823,21 @@ QString XMLPrintSupport::PrintIndividualTestResults_HTML()
 {
     QString html;
 
-    for (const auto& scenarioName : s_scenariosData.keys())
+    QList<QString> names = s_scenariosData.keys();
+    sorterNames(names);
+
+    for (const auto& scenarioName : names)
     {
-        html += HTMLTableHead(shieldingToXML(scenarioName));
+        if(s_scenariosData[scenarioName].testData.isEmpty())
+        {
+            continue;
+        }
+        html += HTMLTableHead(scenarioName);
 
         html += "\n\t<tr>";
         for (const auto& name : TableColumnNames(NASKTableType::IndividualScenarioResults))
         {
-            html += QString("\n\t\t<th align=\"center\">%1</th>").arg(shieldingToXML(name));
+            html += QString("\n\t\t<th align=\"center\">%1</th>").arg(name);
         }
         html += "\n\t</tr>";
 
@@ -686,7 +846,7 @@ QString XMLPrintSupport::PrintIndividualTestResults_HTML()
             html += "\n\t<tr>";
             for (const auto& txtD : d.txtTestData)
             {
-                html += QString("\n\t\t<td align=\"center\">%1</td>").arg(shieldingToXML(txtD));
+                html += QString("\n\t\t<td align=\"center\">%1</td>").arg(txtD);
             }
             if (d.passState)
             {
@@ -713,8 +873,15 @@ QString XMLPrintSupport::PrintIndividualTestResults_XML()
         TestName = 0
     };
 
-    for (const auto& scenarioName : s_scenariosData.keys())
+    QList<QString> names = s_scenariosData.keys();
+    sorterNames(names);
+
+    for (const auto& scenarioName : names)
     {
+        if(s_scenariosData[scenarioName].testData.isEmpty())
+        {
+            continue;
+        }
         xml += XMLTableHead(scenarioName);
 
         xml += XMLRowHead;
@@ -722,7 +889,7 @@ QString XMLPrintSupport::PrintIndividualTestResults_XML()
             int numberCell = 1 + tableOffset;
             for (const auto& name : TableColumnNames(NASKTableType::IndividualScenarioResults))
             {
-                xml += XMLRowCellData[4].arg(numberCell).arg(shieldingToXML(name));
+                xml += XMLRowCellData[4].arg(numberCell).arg(ShieldingToXML(name));
                 numberCell++;
             }
         }
@@ -735,10 +902,14 @@ QString XMLPrintSupport::PrintIndividualTestResults_XML()
                 int numberCell = 1 + tableOffset;
                 for (const auto& txtD : d.txtTestData)
                 {
-                    if(EnumColumnSpecStyle(numberCell - (1 + tableOffset)) == EnumColumnSpecStyle::TestName)
-                        xml += XMLRowCellData[2].arg(numberCell).arg(shieldingToXML(txtD));
+                    if (EnumColumnSpecStyle(numberCell - (1 + tableOffset)) == EnumColumnSpecStyle::TestName)
+                    {
+                        xml += XMLRowCellData[2].arg(numberCell).arg(ShieldingToXML(txtD));
+                    }
                     else
-                        xml += XMLRowCellData[3].arg(numberCell).arg(shieldingToXML(txtD));
+                    {
+                        xml += XMLRowCellData[3].arg(numberCell).arg(ShieldingToXML(txtD));
+                    }
                     numberCell++;
                 }
 
@@ -756,20 +927,25 @@ QString XMLPrintSupport::PrintIndividualTestResults_XML()
             }
             xml += XMLRowFoot;
         }
-        if(faile)
-            xml += XMLTableFoot.arg("<TabColorIndex>10</TabColorIndex>");//"<TabColorIndex>9</TabColorIndex>"//9
+        if (faile)
+        {
+            xml += XMLTableFoot.arg("<TabColorIndex>10</TabColorIndex>");    //"<TabColorIndex>9</TabColorIndex>"//9
+        }
         else
+        {
             xml += XMLTableFoot.arg("");
-
+        }
     }
-
     return xml;
 }
 
-QString XMLPrintSupport::checkRepairfileName(const QString& lruName, const QString& lruSN, const QString& date)
+QString XMLPrintSupport::CheckRepairfileName(const QString& lruName, const QString& lruSN, const QString& date,
+                                             const QString& fileExtension, const QString& directory)
 {
-    QString filePath = QString("d:/TempExportedProtocols/%1_%2_%3").arg(lruName).arg(lruSN).arg(date);
-    if(namesFilesExp.count(filePath) != 0)
+    QString filePath = QString(directory + "/%1_%2_%3")
+            .arg(lruName).arg(lruSN).arg(date);
+
+    if (namesFilesExp.count(filePath) != 0)
     {
         QString newFilePath;
         int k = 1;
@@ -777,18 +953,19 @@ QString XMLPrintSupport::checkRepairfileName(const QString& lruName, const QStri
         {
             newFilePath = filePath + "_" + QString::number(k);
             k++;
-        }while(namesFilesExp.count(newFilePath) != 0);
+        } while (namesFilesExp.count(newFilePath) != 0);
         filePath = newFilePath;
     }
-    qDebug() << filePath;
     namesFilesExp.push_back(filePath);
-    //filePath += ".xls";
+
+    filePath += QString(".%1").arg(fileExtension);
+    qDebug() << filePath;
+
     return filePath;
 }
 
 void XMLPrintSupport::PrintHTMLToPdf(const QString& html, const QString& fileName)
 {
-
     QPrinter printer(QPrinter::PrinterResolution);
     printer.setOutputFormat(QPrinter::PdfFormat);
     printer.setPaperSize(QPrinter::A4);
@@ -809,22 +986,242 @@ void XMLPrintSupport::PrintHTMLToFile(const QString& html, const QString& fileNa
     else
     {
 
-        f.write(html.toLocal8Bit());
-        //f.write(html.toUtf8().constData());
+        //f.write(html.toLocal8Bit());
+        f.write(html.toUtf8().constData());
         f.close();
     }
 }
 
-void XMLPrintSupport::PrintHTMLToFiles(const QString& html, const QString& lruName, const QString& lruSN, const QString& date)
+void XMLPrintSupport::PrintHTMLToFiles(QList<QString> htmlList, QList<QString> htmlFileNameList,  XMLPrintProgress* progress)
 {
-    //    PrintHTMLToPdf(html, QString("d:/TempExportedProtocols/Exported_protocol___%1.pdf").arg(sessionID));
-    //    PrintHTMLToFile(html, QString("d:/TempExportedProtocols/Exported_protocol___%1.html").arg(sessionID));
-    //PrintHTMLToPdf(html, checkRepairfileName(lruName, lruSN, date));
-    //PrintHTMLToFile(html, checkRepairfileName(lruName, lruSN, date));
+    for(int i = 0; i < htmlList.size(); ++i)//
+    {
+        if(stop)
+        {
+            return;
+        }
+        progress->setProgressCount(progress->getProgressCount() + progress->getPartProgress());
+        PrintHTMLToFile(htmlList.at(i), htmlFileNameList.at(i));
+    }
 }
 
-QPair<QList<QString>, QList<XMLPrintSupport::FileNameElements>> XMLPrintSupport::createXmlFiles(QSqlDatabase& db)
+void XMLPrintSupport::PrintHTMLToFiles(QList<QString> htmlList, QList<XMLPrintSupport::FileNameElements> htmlFileNameList, const QString& direction,  XMLPrintProgress* progress)
 {
+    for(int i = 0; i < htmlList.size(); ++i)//
+    {
+        if(stop)
+        {
+            return;
+        }
+        QString path = CheckRepairfileName(htmlFileNameList.at(i).lruName, htmlFileNameList.at(i).lruSN, htmlFileNameList.at(i).date, "xls", direction);
+        progress->setProgressCount(progress->getProgressCount() + progress->getPartProgress());
+        PrintHTMLToFile(htmlList.at(i), path);
+    }
+}
+
+void XMLPrintSupport::PrintHTMLToPdfFiles(QList<QString> htmlList, QList<QString> htmlFileNameList,  XMLPrintProgress* progress, QList<QHash<QString, ScenarioData>> scenariosHashList)
+{
+    for(int i = 0; i < htmlList.size(); ++i)//
+    {
+        if(stop)
+        {
+            return;
+        }
+        s_scenariosData = scenariosHashList.at(i);
+        progress->setProgressCount(progress->getProgressCount() + progress->getPartProgress());
+        PrintHTMLToPdf(htmlList.at(i), htmlFileNameList.at(i));
+    }
+}
+
+void XMLPrintSupport::close()
+{
+    this->~XMLPrintSupport();
+}
+
+void XMLPrintSupport::setStop(bool stop)
+{
+    this->stop = stop;
+}
+
+void XMLPrintSupport::CreateHTMLFile(QSqlDatabase& db, const QString& directory, XMLPrintProgress* progress, QMap<QString, QString*> filtersMemory)
+{
+    QString str = db.databaseName();
+    progress->watcher.setFuture(QtConcurrent::run(this, &XMLPrintSupport::WorkAtHTMLFile, directory, str, progress, filtersMemory));
+    return;
+}
+
+void XMLPrintSupport::CreateXMLFiles(QSqlDatabase& db, const QString& directory, XMLPrintProgress* progress, QMap<QString, QString*> filtersMemory)
+{
+    QString str = db.databaseName();
+    progress->watcher.setFuture(QtConcurrent::run(this, &XMLPrintSupport::WorkAtXMLFile, directory, str, progress, filtersMemory));
+    return;
+}
+
+void XMLPrintSupport::CreateXMLAndHTML(QSqlDatabase& db, const QString& directory, XMLPrintProgress* progress, QMap<QString, QString*> filtersMemory)
+{
+    QString str = db.databaseName();
+    progress->watcher.setFuture(QtConcurrent::run(this, &XMLPrintSupport::WorkAtXMLAndHTMLFile, directory, str, progress, filtersMemory));
+    return;
+}
+
+void XMLPrintSupport::WorkAtXMLAndHTMLFile(const QString& directory, const QString& fileName, XMLPrintProgress* progress, QMap<QString, QString*> filtersMemory)
+{
+    WorkAtXMLFile(directory, fileName, progress, filtersMemory);
+    WorkAtHTMLFile(directory, fileName, progress, filtersMemory);
+}
+
+void XMLPrintSupport::WorkAtHTMLFile(const QString& directory, const QString& fileName, XMLPrintProgress* progress, QMap<QString, QString*> filtersMemory)
+{
+    QSqlDatabase db;
+
+    db = QSqlDatabase :: addDatabase("QSQLITE", "Second2"); // В зависимости от типа базы данных нужно будет дополнить и изменить
+    db.setDatabaseName(fileName);
+
+    if(!db.open())
+        return ;
+
+    QSqlQuery query(db);
+    const auto atrColumnsNames = TableColumnNames(NASKTableType::AcceptanceTestReports);
+    QString *filter = filtersMemory.value(TableCaption(NASKTableType::AcceptanceTestReports), nullptr);
+    bool status;
+
+    if(filter != nullptr  && *filter != "")
+    {
+        status = query.exec(QString("SELECT * FROM '%1'").arg(TableCaption(NASKTableType::AcceptanceTestReports)) + " WHERE " + *filter + ";");
+    }
+    else
+    {
+        status = query.exec(QString("SELECT * FROM '%1';").arg(TableCaption(NASKTableType::AcceptanceTestReports)));
+    }
+    if (!status)
+    {
+        qDebug() << "DB Query Error: " << query.lastError().text();
+        return ;
+    }
+
+    FileNameElements elems;
+
+    QList<QString> htmlList;
+    QList<QString> fileNameList;
+    QList<QHash<QString, ScenarioData>>scenariosHashList;
+    while (query.next())
+    {
+        QString html = "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" /></head><body>";
+        html += "<p><table bordercolor=\"black\" border=\"1\" bgcolor=\"white\" width=\"100%\">";
+        html += QString("<caption align=\"center\">%1</caption>")
+                .arg(TableCaption(NASKTableType::AcceptanceTestReports));
+
+        qlonglong sessionID = 0;
+        auto index = 0;
+        while (!query.value(index).isNull())
+        {
+            const auto val = query.value(index);
+
+            html += "<tr>";
+            html += QString("<td align=\"left\">%1</td>").arg(atrColumnsNames.value(index));
+
+            if (index == 9)
+            {
+                auto dt = QDateTime::fromString(val.toString());
+                if (!dt.isValid())
+                {
+                    dt = QDateTime::fromString(val.toString(), "MM/dd/yyyy HH:mm:ss");
+                }
+                elems.date = dt.toString("MM_dd_yyyy___HH.mm.ss");
+                html += QString("<td align=\"center\">%1</td>").arg(dt.toString("MM/dd/yyyy HH:mm:ss"));
+            }
+            else
+            {
+                html += QString("<td align=\"center\">%1</td>").arg(val.toString());
+            }
+            html += "</tr>";
+
+            if (!index)
+            {
+                sessionID = val.toLongLong();
+            }
+
+            if (index == 2)
+            {
+                elems.lruName = val.toString();
+            }
+            if (index == 3)
+            {
+                elems.lruSN = val.toString();
+            }
+
+            index++;
+        }
+        html += "</table><br><br><br></p>";
+        ////////////////////////////
+        //        {
+        //            int count = 1;
+        //            QString temp = PrintTable_HTML(db, NASKTableType::SuspectListOfSRUs, sessionID, filtersMemory);
+        //            if(temp != "")
+        //                count++;
+        //            html += temp;
+        //            temp = PrintTable_HTML(db, NASKTableType::VisualInspection, sessionID, filtersMemory);
+        //            if(temp != "")
+        //                count++;
+        //            html += temp;
+        //            if (!ParseTestResults(db, sessionID, filtersMemory))
+        //            {
+        //                qDebug() << "Not managed to parse test results!!!!!";
+        //                return ;
+        //            }
+        //            count++;
+        //            html += PrintScenarioData_HTML(count);
+        //        }
+        /////////////////////////////
+        int count = 1;
+        QString temp = PrintTable_HTML(db, NASKTableType::SuspectListOfSRUs, sessionID, filtersMemory);
+        if(temp != "")
+            count++;
+        html += temp;
+        temp = PrintTable_HTML(db, NASKTableType::VisualInspection, sessionID, filtersMemory);
+        if(temp != "")
+            count++;
+        html += temp;
+        if (!ParseTestResults(db, sessionID, filtersMemory))
+        {
+            qDebug() << "Not managed to parse test results!!!!!";
+            return ;
+        }
+        count++;
+
+        html += PrintScenarioData_HTML();
+        html += PrintIndividualTestResults_HTML();
+
+        html += "</body></html>";
+
+        htmlList.push_back(html);
+        fileNameList.push_back(CheckRepairfileName(elems.lruName, elems.lruSN, elems.date, "pdf", directory));
+
+        scenariosHashList.push_back(s_scenariosData);
+        s_scenariosData.clear();
+
+    }
+    progress->setProgressCount(0);
+
+    if(htmlList.size() != 0)
+        progress->setPartProgress(float(100) / htmlList.size());
+    else
+        progress->setProgressCount(100);
+
+    PrintHTMLToPdfFiles(htmlList, fileNameList, progress, scenariosHashList);
+    progress->setProgressCount(100);
+    db.close();
+}
+
+void XMLPrintSupport::WorkAtXMLFile(const QString& directory, const QString& fileName, XMLPrintProgress* progress, QMap<QString, QString*> filtersMemory)
+{
+    QSqlDatabase db;
+
+    db = QSqlDatabase :: addDatabase("QSQLITE", "Second"); // В зависимости от типа базы данных нужно будет дополнить и изменить
+    db.setDatabaseName(fileName);
+
+    if(!db.open())
+        return ;
 
     /// TODO: add document properties???
     ///
@@ -834,12 +1231,14 @@ QPair<QList<QString>, QList<XMLPrintSupport::FileNameElements>> XMLPrintSupport:
     ///    <Created>current dt</Created>
     ///    <Version>some version</Version>
     ///  </DocumentProperties>
-    ///
+
     QList<QString> xmlMainList;
 
     QString xmlStyles = "";
     foreach (auto var, XMLStyles)
+    {
         xmlStyles += var;
+    }
 
     const QString xmlHead =
             "<?xml version=\"1.0\"  encoding=\"UTF-8\"?>"
@@ -863,14 +1262,25 @@ QPair<QList<QString>, QList<XMLPrintSupport::FileNameElements>> XMLPrintSupport:
     QString xmlFoot = "\n</Workbook>";
 
     QList<XMLPrintSupport::FileNameElements> fileNameElementsList;
-    QSqlQuery query;
+    QSqlQuery query(db);
     const auto atrColumnsNames = TableColumnNames(NASKTableType::AcceptanceTestReports);
 
-    const auto status = query.exec(QString("select * from '%1';").arg(TableCaption(NASKTableType::AcceptanceTestReports)));
+    QString *filter = filtersMemory.value(TableCaption(NASKTableType::AcceptanceTestReports), nullptr);
+    bool status;
+
+    if(filter != nullptr  && *filter != "")
+    {
+        status = query.exec(QString("SELECT * FROM '%1'").arg(TableCaption(NASKTableType::AcceptanceTestReports)) + " WHERE " + *filter + ";");
+    }
+    else
+    {
+        status = query.exec(QString("SELECT * FROM '%1';").arg(TableCaption(NASKTableType::AcceptanceTestReports)));
+    }
+
     if (!status)
     {
         qDebug() << "DB Query Error: " << query.lastError().text();
-        return {};
+        return ;
     }
 
     while (query.next())
@@ -888,44 +1298,65 @@ QPair<QList<QString>, QList<XMLPrintSupport::FileNameElements>> XMLPrintSupport:
             {
                 int numberCell = 1 + tableOffset;
                 xml += XMLRowHead;
-                xml += XMLRowCellData[0].arg(numberCell).arg(shieldingToXML(atrColumnsNames.value(index)));
+
+                xml += XMLRowCellData[0].arg(numberCell).arg(ShieldingToXML(atrColumnsNames.value(index)));
                 numberCell++;
-                xml += XMLRowCellData[1].arg(numberCell).arg(shieldingToXML(val.toString()));
-                numberCell++;
+                if (atrColumnsNames.value(index).toLower() == "session run date&time")
+                {
+                    auto dt = QDateTime::fromString(val.toString());
+                    if (!dt.isValid())
+                    {
+                        dt = QDateTime::fromString(val.toString(), "MM/dd/yyyy HH:mm:ss");
+                    }
+                    fileNameElements.date = dt.toString("MM_dd_yyyy___HH.mm.ss");
+
+                    xml += XMLRowCellData[1].arg(numberCell).arg(ShieldingToXML(dt.toString("MM/dd/yyyy HH:mm:ss")));
+                    numberCell++;
+                }
+                else
+                {
+                    xml += XMLRowCellData[1].arg(numberCell).arg(ShieldingToXML(val.toString()));
+                    numberCell++;
+                }
+
                 xml += XMLRowFoot;
 
                 if (!index)
                 {
                     sessionID = val.toLongLong();
                 }
-
-                if(atrColumnsNames.value(index).toLower() == "lru name")
-                    fileNameElements.lruName = val.toString();
-                if(atrColumnsNames.value(index).toLower() == "lru s/n")
-                    fileNameElements.lruSN = val.toString();
-                if(atrColumnsNames.value(index).toLower() == "session run date&time")
+                if (atrColumnsNames.value(index).toLower() == "lru name")
                 {
-                    QDateTime dateTime;
-                    //dateTime.
-
-                    fileNameElements.date = QString(val.toString().split(" ").at(0)).replace("/", ".");
-
+                    fileNameElements.lruName = val.toString();
+                }
+                if (atrColumnsNames.value(index).toLower() == "lru s/n")
+                {
+                    fileNameElements.lruSN = val.toString();
                 }
 
                 index++;
             }
         }
         xml += XMLTableFoot.arg("");
-
-        xml += PrintTable_XML(NASKTableType::SuspectListOfSRUs, sessionID);
-        xml += PrintTable_XML(NASKTableType::VisualInspection, sessionID);
-
-        if (!ParseTestResults(sessionID))
         {
-            qDebug() << "Not managed to parse test results!!!!!";
-            return {};
+            int count = 1;
+            QString temp = PrintTable_XML(db, NASKTableType::SuspectListOfSRUs, sessionID, filtersMemory);
+            if(temp != "")
+                count++;
+            xml += temp;
+            temp = PrintTable_XML(db, NASKTableType::VisualInspection, sessionID, filtersMemory);
+            if(temp != "")
+                count++;
+            xml += temp;
+
+            if (!ParseTestResults(db, sessionID, filtersMemory))
+            {
+                qDebug() << "Not managed to parse test results!!!!!";
+                return ;
+            }
+            count++;
+            xml += PrintScenarioData_XML(count);
         }
-        xml += PrintScenarioData_XML();
         xml += PrintIndividualTestResults_XML();
 
         xml += xmlFoot;
@@ -934,67 +1365,19 @@ QPair<QList<QString>, QList<XMLPrintSupport::FileNameElements>> XMLPrintSupport:
         fileNameElementsList << fileNameElements;
         s_scenariosData.clear();
     }
+    db.close();
+    progress->setProgressCount(0);
 
-    return qMakePair(xmlMainList, fileNameElementsList);
+    if(xmlMainList.size() != 0)
+        progress->setPartProgress(float(100) / xmlMainList.size());
+    else
+        progress->setProgressCount(100);
+
+    PrintHTMLToFiles(xmlMainList, fileNameElementsList, directory, progress);
+    progress->setProgressCount(100);
 }
 
-QString XMLPrintSupport::createHTMLFile(FileNameElements& fileNameElements, QSqlDatabase& db)
-{
-    QString html = "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" /></head><body>";
-       QSqlQuery query;
-       const auto atrColumnsNames = TableColumnNames(NASKTableType::AcceptanceTestReports);
-
-       const auto status = query.exec(QString("select * from '%1';").arg(TableCaption(NASKTableType::AcceptanceTestReports)));
-       if (!status)
-       {
-           qDebug() << "DB Query Error: " << query.lastError().text();
-           return QString();
-       }
-
-       while (query.next())
-       {
-           html += "<p><table bordercolor=\"black\" border=\"1\" bgcolor=\"white\" width=\"100%\">";
-           html += QString("<caption align=\"center\">%1</caption>")
-                   .arg(TableCaption(NASKTableType::AcceptanceTestReports));
-
-           qlonglong sessionID = 0;
-           auto index = 0;
-           while (!query.value(index).isNull())
-           {
-               const auto val = query.value(index);
-
-               html += "<tr>";
-               html += QString("<td align=\"left\">%1</td>").arg(shieldingToXML(atrColumnsNames.value(index)));
-               html += QString("<td align=\"center\">%1</td>").arg(shieldingToXML(val.toString()));
-               html += "</tr>";
-
-               if (!index)
-               {
-                   sessionID = val.toLongLong();
-               }
-               index++;
-           }
-           html += "</table><br><br><br></p>";
-
-           html += PrintTable_HTML(NASKTableType::SuspectListOfSRUs, sessionID);
-           html += PrintTable_HTML(NASKTableType::VisualInspection, sessionID);
-           if (!ParseTestResults(sessionID))
-           {
-               qDebug() << "Not managed to parse test results!!!!!";
-               return QString();
-           }
-           html += PrintScenarioData_HTML();
-           html += PrintIndividualTestResults_HTML();
-
-           html += "</body></html>";
-
-
-       }
-       s_scenariosData.clear();
-       return html;
-}
-
-void XMLPrintSupport::onExportDBAction(QSqlDatabase& db, const QString& typeFile)
+void XMLPrintSupport::onExportDBAction(QSqlDatabase& db, const QString& typeFile, QString directory, XMLPrintProgress* progress, QMap<QString, QString*> filtersMemory)
 {
     if (!db.isOpen())
     {
@@ -1002,23 +1385,19 @@ void XMLPrintSupport::onExportDBAction(QSqlDatabase& db, const QString& typeFile
         return;
     }
     namesFilesExp.clear();
-
-    if(typeFile == "PDF")
+    XMLPrintSupport* printer = new XMLPrintSupport();
+    if (typeFile == "PDF")
     {
-        FileNameElements fileNameElements;
-        QString html = createHTMLFile(fileNameElements, db);
-
-        PrintHTMLToPdf(html, checkRepairfileName(fileNameElements.lruName, fileNameElements.lruSN, fileNameElements.date) + ".pdf");
+        printer->CreateHTMLFile(db, directory, progress, filtersMemory);
     }
-    if(typeFile == "XML")
+    if (typeFile == "XML")
     {
-        QList<FileNameElements> fileNameElementsList;
-        auto xmlFiles = createXmlFiles(db);
-        for(int i = 0; i < xmlFiles.first.size(); ++i)
-        {
-            PrintHTMLToFile(xmlFiles.first.at(i), checkRepairfileName(xmlFiles.second.at(i).lruName, xmlFiles.second.at(i).lruSN, xmlFiles.second.at(i).date) + ".xls");
-        }
+        printer->CreateXMLFiles(db, directory, progress, filtersMemory);
     }
-
+    if(typeFile == "PDF + XML")
+    {
+        printer->CreateXMLAndHTML(db, directory, progress, filtersMemory);
+    }
+    progress->setPrintSup(printer);
     qDebug() << "Export finished!";
 }

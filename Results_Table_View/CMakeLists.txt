@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(Results_Table_View)
 
-find_package(Qt5 COMPONENTS Core Widgets Sql PrintSupport REQUIRED)
+find_package(Qt5 COMPONENTS Core Widgets Sql PrintSupport Test REQUIRED)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
@@ -14,16 +14,16 @@ file(GLOB_RECURSE UIS LIST_DIRECTORIES false *.ui)
 file(GLOB_RECURSE RESOURCE LIST_DIRECTORIES false *.qrc)
 
 add_executable(${PROJECT_NAME} WIN32 ${HEADERS} ${SOURCES} ${RESOURCE} ${UIS} ${UICS})
-target_link_libraries(${PROJECT_NAME} PUBLIC Qt5::Core Qt5::Widgets Qt5::Sql Qt5::PrintSupport)
-#target_link_libraries(${PROJECT_NAME} PUBLIC TestLoggerLib)
-#target_link_libraries(${PROJECT_NAME} PUBLIC InstrumentUtilsLib)
+target_link_libraries(${PROJECT_NAME} PUBLIC Qt5::Core Qt5::Widgets Qt5::Sql Qt5::PrintSupport Qt5::Test)
+target_link_libraries(${PROJECT_NAME} PUBLIC TestLoggerLib)
+target_link_libraries(${PROJECT_NAME} PUBLIC InstrumentUtilsLib)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}
-    #${CMAKE_CURRENT_SOURCE_DIR}/../../../TestLoggerLib
-    #${CMAKE_CURRENT_SOURCE_DIR}/../../../InstrumentUtilsLib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../TestLoggerLib
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../InstrumentUtilsLib
     )
 
-#include_directories(../TestLoggerLib)
-#target_link_libraries(${PROJECT_NAME} PUBLIC TestLoggerLib)
+include_directories(../TestLoggerLib)
+target_link_libraries(${PROJECT_NAME} PUBLIC TestLoggerLib)

@@ -53,7 +53,7 @@ private:
     void launchWizard();
     void fillingComboBoxTableName();
     void addDatabase();
-    void hideColumnsModel();
+    void hideColumnsModels();
     void saveDb(const QString& databaseName);
     const QString loadDb();
     QList<QString> getNamesTables();
@@ -69,7 +69,8 @@ private:
     ProtocolPrinterHeaderView *filter_Sup{nullptr};
     QSqlDatabase db;
     QTimer waitFetchMoreTimer;
-
+    const QStringList hidenColNewModelList {/*"Session ID", "Project Name", "LRU Name", "LRU S/N", "ATE P/N", "ATE S/N", "ATE S/W Ver"*/};
+    const QStringList hidenColModelSupList {/*"Session ID", "Project Name", "LRU Name", "LRU S/N", "ATE P/N", "ATE S/N", "ATE S/W Ver"*/};
 public slots:
     void sliderUpdateModel(int action);
 

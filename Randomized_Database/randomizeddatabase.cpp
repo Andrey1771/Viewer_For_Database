@@ -24,10 +24,11 @@ bool RandomizedDatabase::Random(const QString& nameDatabase, int ammountHundreds
         return false;
     }
 
-    db.exec("CREATE TABLE \"Visual Inspections\" (\r\n\t\"Project name\"\tTEXT NOT NULL,\r\n\t\"LRU Name\"\tTEXT NOT NULL,\r\n\t\"LRU S/N\"\tTEXT NOT NULL,\r\n\t\"ATE P/N\"\tTEXT NOT NULL,\r\n\t\"ATE S/N\"\tTEXT NOT NULL,\r\n\t\"ATE S/W Ver\"\tTEXT NOT NULL,\r\n\t\"Test Status\"\tTEXT NOT NULL,\r\n\t\"Scenario tests run time\"\tTEXT NOT NULL,\r\n\t\"ID\"\tINTEGER NOT NULL,\r\n\t\"Name\"\tTEXT NOT NULL,\r\n\t\"Requirements\"\tTEXT NOT NULL\r\n)");
-    db.exec("CREATE TABLE \"Suspect lists of SRUs\" (\r\n\t\"Project name\"\tTEXT NOT NULL,\r\n\t\"LRU Name\"\tTEXT NOT NULL,\r\n\t\"LRU S/N\"\tTEXT NOT NULL,\r\n\t\"ATE P/N\"\tTEXT NOT NULL,\r\n\t\"ATE S/N\"\tTEXT NOT NULL,\r\n\t\"ATE S/W Ver\"\tTEXT NOT NULL,\r\n\t\"Test Status\"\tTEXT NOT NULL,\r\n\t\"Scenario tests run time\"\tTEXT NOT NULL,\r\n\t\"ID\"\tINTEGER NOT NULL,\r\n\t\"Name\"\tTEXT NOT NULL,\r\n\t\"S/N\"\tTEXT,\r\n\t\"Suspected\"\tTEXT,\r\n\t\"Description\"\tTEXT\r\n)");
-    db.exec("CREATE TABLE \"Acceptance Test Reports\" (\r\n\t\"Project Name\"\tTEXT NOT NULL,\r\n\t\"LRU Name\"\tTEXT NOT NULL,\r\n\t\"LRU S/N\"\tTEXT NOT NULL,\r\n\t\"ATE P/N\"\tTEXT NOT NULL,\r\n\t\"ATE S/N\"\tTEXT NOT NULL,\r\n\t\"ATE S/W Ver\"\tTEXT NOT NULL,\r\n\t\"Test Status\"\tTEXT NOT NULL,\r\n\t\"Run Mode\"\tTEXT NOT NULL,\r\n\t\"Date & Time\"\tTEXT NOT NULL,\r\n\t\"Total Time (hh:mm:ss)\"\tTEXT NOT NULL,\r\n\t\"Environment\"\tTEXT NOT NULL,\r\n\t\"TPS Checksum\"\tTEXT NOT NULL,\r\n\t\"Operator's Name\"\tTEXT NOT NULL\r\n)");
-    db.exec("CREATE TABLE \"Scenario Test Results\" (\r\n\t\"Project name\"\tTEXT NOT NULL,\r\n\t\"LRU Name\"\tTEXT NOT NULL,\r\n\t\"LRU S/N\"\tTEXT NOT NULL,\r\n\t\"ATE P/N\"\tTEXT NOT NULL,\r\n\t\"ATE S/N\"\tTEXT NOT NULL,\r\n\t\"ATE S/W Ver\"\tTEXT NOT NULL,\r\n\t\"Test Status\"\tTEXT NOT NULL,\r\n\t\"Scenario name\"\tTEXT NOT NULL,\r\n\t\"Scenario run time\"\tTEXT NOT NULL,\r\n\t\"Test name\"\tTEXT NOT NULL,\r\n\t\"Low\"\tTEXT NOT NULL,\r\n\t\"Result\"\tTEXT NOT NULL,\r\n\t\"High\"\tTEXT NOT NULL,\r\n\t\"Units\"\tTEXT NOT NULL,\r\n\t\"Status\"\tTEXT NOT NULL\r\n)");
+
+    db.exec("CREATE TABLE \"Visual Inspections \" (\"Session ID \" INTEGER NOT NULL,\"List ID \" TEXT NOT NULL,\"Name \" TEXT NOT NULL,\"Requirements \" TEXT NOT NULL,\"Test Status \" TEXT NOT NULL)");
+    db.exec("CREATE TABLE \"Suspect lists of SRUs \" (\"Session ID \" INTEGER NOT NULL,\"List ID \" TEXT NOT NULL,\"Name \" TEXT NOT NULL,\"S/N \" TEXT NOT NULL,\"Suspected \" TEXT NOT NULL,\"Description \" TEXT NOT NULL)");
+    db.exec("CREATE TABLE \"Acceptance Test Reports\" (\"Session ID\" INTEGER PRIMARY KEY AUTOINCREMENT,\"Project Name\" TEXT NOT NULL,\"LRU Name\" TEXT NOT NULL,\"LRU S/N\" TEXT NOT NULL,\"ATE P/N\" TEXT NOT NULL,\"ATE S/N\" TEXT NOT NULL,\"ATE S/W Ver\" TEXT NOT NULL,\"Test Status\" TEXT NOT NULL,\"Run Mode\" TEXT NOT NULL,\"Session Run Date&Time\" TEXT NOT NULL,\"Session Run Total Time (hh:mm:ss)\" TEXT NOT NULL,\"Environment\" TEXT NOT NULL,\"TPS Checksum\" TEXT NOT NULL,\"Operator's Name\" TEXT NOT NULL)");
+    db.exec("CREATE TABLE \"Scenario Test Results \" (\"Session ID \" INTEGER NOT NULL, \"Product name \" TEXT NOT NULL, \"Scenario name \" TEXT NOT NULL,\"Caption \" TEXT NOT NULL, \"Test name \" TEXT NOT NULL, \"Low \" TEXT NOT NULL,\"Result \" TEXT NOT NULL, \"High \" TEXT NOT NULL, \"Units \" TEXT NOT NULL, \"Status \" TEXT NOT NULL)");
     QSqlQuery query;
     for (int i=0; i<ammountHundreds; ++i)// можно было сделать через prepare, тогда строки снизу были бы понятнее
     {
@@ -52,24 +53,16 @@ void RandomizedDatabase::sendRandReq(int type, int size, QSqlQuery *query)
     {
         //Запросы отправляются блоками по size элементов!
         QString queryString3 = "INSERT INTO `Visual Inspections` "
-                              "VALUES(?,?,?,?,?,?,?,?,?,?,?),";
-        queryString3.append(QString("(?,?,?,?,?,?,?,?,?,?,?),").repeated((size-2)));
-        queryString3.append(QString("(?,?,?,?,?,?,?,?,?,?,?);"));
+                              "VALUES(?,?,?,?,?),";
+        queryString3.append(QString("(?,?,?,?,?),").repeated((size-2)));
+        queryString3.append(QString("(?,?,?,?,?);"));
         query->prepare(queryString3);
         //
         for (int y=0; y<size; ++y)
         {
             query->addBindValue(QString(""+randWord())+"");
-
             query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
-
-            query->addBindValue(QString(""+randDateTime())+"");
-            query->addBindValue(QString(""+QString::number(randValue()))+"");
             query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");
         }
@@ -80,9 +73,9 @@ void RandomizedDatabase::sendRandReq(int type, int size, QSqlQuery *query)
     {
         //Запросы отправляются блоками по size элементов!
         QString queryString3 = "INSERT INTO `Suspect lists of SRUs` "
-                              "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?),";
-        queryString3.append(QString("(?,?,?,?,?,?,?,?,?,?,?,?,?),").repeated((size-2)));
-        queryString3.append(QString("(?,?,?,?,?,?,?,?,?,?,?,?,?);"));
+                              "VALUES(?,?,?,?,?,?),";
+        queryString3.append(QString("(?,?,?,?,?,?),").repeated((size-2)));
+        queryString3.append(QString("(?,?,?,?,?,?);"));
         query->prepare(queryString3);
         //
         for (int y=0; y<size; ++y)
@@ -90,14 +83,6 @@ void RandomizedDatabase::sendRandReq(int type, int size, QSqlQuery *query)
             query->addBindValue(QString(""+randWord())+"");
 
             query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
-
-            query->addBindValue(QString(""+randDateTime())+"");
-            query->addBindValue(QString(""+QString::number(randValue()))+"");
             query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");
@@ -110,13 +95,14 @@ void RandomizedDatabase::sendRandReq(int type, int size, QSqlQuery *query)
     {
         //Запросы отправляются блоками по size элементов!
         QString queryString3 = "INSERT INTO `Acceptance Test Reports` "
-                              "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?),";
-        queryString3.append(QString("(?,?,?,?,?,?,?,?,?,?,?,?,?),").repeated((size-2)));
-        queryString3.append(QString("(?,?,?,?,?,?,?,?,?,?,?,?,?);"));
+                              "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?),";
+        queryString3.append(QString("(?,?,?,?,?,?,?,?,?,?,?,?,?,?),").repeated((size-2)));
+        queryString3.append(QString("(?,?,?,?,?,?,?,?,?,?,?,?,?,?);"));
         query->prepare(queryString3);
         //
         for (int y=0; y<size; ++y)
         {
+            query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");
@@ -138,9 +124,9 @@ void RandomizedDatabase::sendRandReq(int type, int size, QSqlQuery *query)
     {
         //Запросы отправляются блоками по size элементов!
         QString queryString4 = "INSERT INTO `Scenario Test Results` "
-                              "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),";
-        queryString4.append(QString("(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),").repeated((size-2)));
-        queryString4.append(QString("(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"));
+                              "VALUES(?,?,?,?,?,?,?,?,?,?),";
+        queryString4.append(QString("(?,?,?,?,?,?,?,?,?,?),").repeated((size-2)));
+        queryString4.append(QString("(?,?,?,?,?,?,?,?,?,?);"));
         query->prepare(queryString4);
         //
         for (int y=0; y<size; ++y)
@@ -155,11 +141,6 @@ void RandomizedDatabase::sendRandReq(int type, int size, QSqlQuery *query)
             query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");
 
-            query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randDateTime())+"");
-            query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
-            query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");
             query->addBindValue(QString(""+randWord())+"");

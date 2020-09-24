@@ -19,10 +19,6 @@ void PrintComboBox::paint(QPainter *painter, const QStyleOptionViewItem &option,
     comboboxstyle.rect.setHeight(6*option.rect.height()/8);
     comboboxstyle.state = QStyle::State_Active | QStyle::State_Enabled;
 
-
-    //comboboxstyle.currentText = index.model()->data(index.model()->index(index.row(),0), Qt::TextAlignmentRole).toInt();
-    //comboboxstyle.currentText = comboBoxVect.at(index.row())->currentData().toString();
-
     auto list = index.model()->data(index.model()->index(index.row(), index.column()), Qt::UserRole).toString().split("/");
     unsigned int currentIndex = list.last().toInt();
     list.pop_back();

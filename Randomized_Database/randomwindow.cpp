@@ -7,7 +7,7 @@ RandomWindow::RandomWindow(QWidget *parent) :
     ui(new Ui::RandomWindow)
 {
     ui->setupUi(this);
-    RandomizedDatabase::Random("TestDatabaseProtocolPrinterModel500Mk2"".""sqlite3", 5);// создает БД или дополняет существующую ранд элементами, записывается количество сотен
+    RandomizedDatabase::Random("TestDatabaseProtocolPrinterModel50000Mk3"".""sqlite3", 5000);// создает БД или дополняет существующую ранд элементами, записывается количество сотен
 }
 
 RandomWindow::~RandomWindow()

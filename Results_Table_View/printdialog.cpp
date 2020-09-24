@@ -6,23 +6,29 @@
 #include "protocolprinterheaderview.h"
 #include "XMLPrintSupport.h"
 #include "protocolprinteritemmodel.h"
-
+#include "xmlprintprogress.h"
+#include <QFileDialog>
+#include <QMessageBox>
 #include <QDebug>
+#include <QtConcurrent/QtConcurrentRun>
+#include <QFutureWatcher>
 
 PrintDialog::PrintDialog(const QList<QString>& namesTables, ProtocolPrinterItemModel* model, ProtocolPrinterHeaderView* header, QSqlDatabase& db, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::PrintDialog)
 {
     ui->setupUi(this);
+
     printDialogItemModel = new PrintDialogItemModel(namesTables, model, header);
 
-    ui->tableView->setModel(printDialogItemModel);
+    ui->tableView_Table->setModel(printDialogItemModel);
     PrintComboBox* comboBox = new PrintComboBox(this);
-    ui->tableView->setItemDelegateForColumn(0, comboBox);
+    ui->tableView_Table->setItemDelegateForColumn(0, comboBox);
 
     PrintComboBox* comboBox2 = new PrintComboBox(this);
-    ui->tableView->setItemDelegateForColumn(1, comboBox2);
+    ui->tableView_Table->setItemDelegateForColumn(1, comboBox2);
 
+    ui->progressBar_Progress->hide();
     this->db = &db;
 
 
@@ -31,7 +37,9 @@ PrintDialog::PrintDialog(const QList<QString>& namesTables, ProtocolPrinterItemM
     connect(ui->pushButton_AddRow, &QPushButton::clicked, this, &PrintDialog::onAddRow);
     connect(ui->pushButton_RemoveRow, &QPushButton::clicked, this, &PrintDialog::onRemoveRow);
     connect(ui->pushButton_Cancel, &QPushButton::clicked, this, &PrintDialog::onCancel);
+
     connect(ui->pushButton_Export, &QPushButton::clicked, this, &PrintDialog::onExport);
+    connect(ui->pushButtonSetPath_Directory, &QPushButton::clicked, this, &PrintDialog::launchFilePathWizard);
 }
 
 PrintDialog::~PrintDialog()
@@ -48,22 +56,56 @@ void PrintDialog::onRemoveRow()
 {
     printDialogItemModel->removeRows(printDialogItemModel->rowCount(QModelIndex())-1, 1, QModelIndex());
 }
+void PrintDialog::progressBarSetVal(float val)
+{
+    ui->progressBar_Progress->setValue(int (val));
+}
+
+void PrintDialog::finishedWork()
+{
+    ui->pushButton_Export->setEnabled(true);
+    progress->getPrintSup()->close();
+}
+
+void PrintDialog::startWork()
+{
+    ui->pushButton_Export->setEnabled(false);
+}
 
 void PrintDialog::onExport()
 {
-
-    //qDebug() << "Str filters " <<  ;
+    QDir dir;
+    dir.setPath(ui->lineEdit_Directory->text());
+    qDebug() << dir.path();
+    if (!dir.exists())
+    {
+        if(!dir.mkpath(dir.path()))
+        {
+            QMessageBox::critical(this, QObject::tr("Error path not created"), QObject::tr("Cannot create the directory"), QMessageBox::Cancel);
+            return;
+        }
+    }
+    progress = new XMLPrintProgress(this);
+    ui->progressBar_Progress->setVisible(true);
+    ui->progressBar_Progress->setValue(0);
+    connect(progress, &XMLPrintProgress::progressChanged, this, &PrintDialog::progressBarSetVal);
+    connect(&progress->watcher, &QFutureWatcher<void>::finished, this, &PrintDialog::finishedWork);
+    startWork();
     switch(ui->comboBox_ExportChanger->currentIndex())
     {
-    case(0)://PDF
+    case(0)://"PDF + XML"
     {
-        XMLPrintSupport::onExportDBAction(*db, "PDF");
-
+        XMLPrintSupport::onExportDBAction(*db, "PDF + XML", dir.path(), progress, printDialogItemModel->getFiltersMemory());
         break;
     }
-    case(1)://XML
+    case(1)://PDF
     {
-        XMLPrintSupport::onExportDBAction(*db, "XML");
+        XMLPrintSupport::onExportDBAction(*db, "PDF", dir.path(), progress, printDialogItemModel->getFiltersMemory());
+        break;
+    }
+    case(2)://XML
+    {
+        XMLPrintSupport::onExportDBAction(*db, "XML", dir.path(), progress, printDialogItemModel->getFiltersMemory());
         break;
     }
     default:
@@ -72,10 +114,6 @@ void PrintDialog::onExport()
         break;
     }
     }
-
-    ProtocolPrinterItemModel* model = new ProtocolPrinterItemModel(this);
-
-    delete model;
 }
 
 void PrintDialog::onCancel()
@@ -83,14 +121,16 @@ void PrintDialog::onCancel()
     close();
 }
 
-QString PrintDialog::getFiltersMemory()
+void PrintDialog::launchFilePathWizard()
 {
-    QString filtersMemory;
-    QString lineEditText;
-    int lineNumber;
-    int count = 0;
-    ProtocolPrinterItemModel* model = new ProtocolPrinterItemModel;
-    ProtocolPrinterHeaderView::checksFilter(model, nullptr, lineEditText, filtersMemory, printDialogItemModel->getFiltersMemory(), lineNumber, count, 0);
+    QString strPath = QFileDialog::getExistingDirectory(nullptr, "Path to file save", QString());
+    ui->lineEdit_Directory->setText(strPath);
+}
 
-
+void PrintDialog::closeEvent(QCloseEvent */*event*/)
+{
+    if(progress != nullptr)
+    {
+        progress->getPrintSup()->setStop(true);
+    }
 }
