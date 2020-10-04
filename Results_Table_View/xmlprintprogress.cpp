@@ -36,3 +36,8 @@ void XMLPrintProgress::setPrintSup(XMLPrintSupport *value)
 {
     printSup = value;
 };
+
+void XMLPrintProgress::sendCountFiles(int countFiles)
+{
+    emit countedFiles(countFiles);
+}

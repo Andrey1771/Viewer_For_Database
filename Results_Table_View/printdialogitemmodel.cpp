@@ -1,10 +1,11 @@
 #include "printdialogitemmodel.h"
+#include "protocolprinteritemmodel.h"
+#include "sqlquerybuilder.h"
+#include "translatordata.h"//возможно, уберу
 
 #include <QComboBox>
-#include <protocolprinterheaderview.h>
-#include "protocolprinteritemmodel.h"
-#include <QDebug>
 #include <QDateTime>
+#include <QDebug>
 
 PrintDialogItemModel::PrintDialogItemModel(const QList<QString>& namesTables, ProtocolPrinterItemModel* model, ProtocolPrinterHeaderView* header)
 {
@@ -12,7 +13,6 @@ PrintDialogItemModel::PrintDialogItemModel(const QList<QString>& namesTables, Pr
     this->model = model;
     insertRows(0, 1, QModelIndex());
 }
-
 
 QModelIndex PrintDialogItemModel::index(int row, int column, const QModelIndex &parent) const
 {
@@ -56,26 +56,26 @@ QVariant PrintDialogItemModel::data(const QModelIndex &index, int role) const
 
     if(role == Qt::UserRole && index.column() == 0)
     {
-        QString namesTablesStr = "";
+        QStringList namesTablesStr;
         for(auto var : this->namesTables)
         {
-            namesTablesStr += var + "/";
+            namesTablesStr.push_back(var);
         }
-        namesTablesStr += QString::number(comboBoxTablesMap.value(index.row()));
-        qDebug() << "namesTablesStr " << namesTablesStr;
+        namesTablesStr.push_back(QString::number(comboBoxTablesMap.value(index.row())));
+        //qDebug() << "namesTablesStr " << namesTablesStr;
         return  namesTablesStr;
     }
     if(role == Qt::UserRole && index.column() == 1)
     {
-        QString namesColumnsStr = "";
+        QStringList namesColumnsStr;
         auto headerList = model->getHeaderTable(this->namesTables.at(comboBoxTablesMap.value(index.row())));
 
         for(auto var : headerList)
         {
-            namesColumnsStr += var + "/";
+            namesColumnsStr.push_back(var);
         }
-        namesColumnsStr += QString::number(comboBoxColumnsMap.value(index.row()));
-        qDebug() << "namesColumnsStr " << namesColumnsStr;
+        namesColumnsStr.push_back(QString::number(comboBoxColumnsMap.value(index.row())));
+        //qDebug() << "namesColumnsStr " << namesColumnsStr;
         return  namesColumnsStr;
     }
 
@@ -147,14 +147,14 @@ bool PrintDialogItemModel::setData(const QModelIndex &index, const QVariant &val
     if(role == Qt::UserRole && index.column() == 0)
     {
         comboBoxTablesMap.insert(index.row(), value.toInt());
-        qDebug() << "comboBoxTablesMap " << comboBoxTablesMap;
+        //qDebug() << "comboBoxTablesMap " << comboBoxTablesMap;
         comboBoxColumnsMap.remove(index.row());
     }
 
     if(role == Qt::UserRole && index.column() == 1)
     {
         comboBoxColumnsMap.insert(index.row(), value.toInt());
-        qDebug() << "comboBoxColumnsMap " << comboBoxColumnsMap;
+        //qDebug() << "comboBoxColumnsMap " << comboBoxColumnsMap;
     }
 
     if(role == Qt::EditRole && index.column() == 2)
@@ -174,24 +174,62 @@ Qt::ItemFlags PrintDialogItemModel::flags(const QModelIndex &index) const
         return Qt::NoItemFlags;
     return Qt::ItemIsEditable | QAbstractItemModel::flags(index) | Qt::ItemIsUserCheckable ;
 }
-
-QMap<QString, QString*> PrintDialogItemModel::getFiltersMemory()
+/////////////////////////////////
+QMap<QString, QList<QString*>> PrintDialogItemModel::getFiltersMemory()
 {
-    QMap<QString, QString*> map;
+    QMap<QString, QList<QString*>> mapTemp;
     int number = 0;
+//    QList<QString*> filtersMemoryCombined;// это список из прямых SQL запросов к конкретному стобцу таблицы
+//    for (auto var : filtersMemoryMap.keys())
+//    {
+//        filtersMemoryMap.value(var);
+//        filtersMemoryCombined.push_back();
+//    }
     for (auto var : filtersMemory)
     {
-        map.insert(this->namesTables.at(comboBoxTablesMap.value(number)), var);
+        auto iter = mapTemp.find(this->namesTables.at(comboBoxTablesMap.value(number)));
+        if(iter != mapTemp.end())
+        {
+            iter->push_back(var);
+        }
+        else
+        {
+            QList<QString*> list;
+            list.push_back(var);
+            mapTemp.insert(this->namesTables.at(comboBoxTablesMap.value(number)), list);
+        }
+        //map.insert(this->namesTables.at(comboBoxTablesMap.value(number)), var);
         ++number;
     }
-
+    QList<QString*> filtersMemoryCombinedList;
+    QMap<QString, QList<QString*>> map;
+    for (auto key : mapTemp.keys())
+    {
+        bool first = true;
+        for(auto filterString : mapTemp.value(key))
+        {
+            if(first)
+            {
+                first = false;
+                filtersMemoryCombinedList.push_back(filterString);
+            }
+            else
+            {
+                *filtersMemoryCombinedList.last() += (" OR " + *filterString);
+            }
+        }
+        map.insert(key, filtersMemoryCombinedList);
+        filtersMemoryCombinedList.clear();
+    }
     return map;
 }
-
+///////////////////////////////////
 void PrintDialogItemModel::setFiltersMemory(QString& filterMemory, const QString& lineEditText, QList<QString>headerList, int lineNumber)
 {
-    QList<QDateTime> dateTimeList;//namesTables
-    qDebug() << "MAGIC: " << nameColumns;
+    QList<QDateTime> dateTimeList;//namesTables////
+    TranslatorData::fillListAllDateTimeDb(dateTimeList, model, lineNumber);
+
+    //qDebug() << "MAGIC: " << nameColumns;
     QList<QString> sessionIdList;
 
     this->model->getQuery().exec("SELECT `Session ID` FROM `" + model->tableName() + "`;");
@@ -200,25 +238,26 @@ void PrintDialogItemModel::setFiltersMemory(QString& filterMemory, const QString
         sessionIdList << this->model->getQuery().value(0).toString();
     }
     ///TODO переделать без else if
+    // 11/1/2000 9:11:04 - 05/2/2033 12:11:26
     if((model->tableName() == tablesNamesList.at(0)) && (lineNumber == int(SpecColumnsNumb::SesRunDateTime)))//"Test Reports"
     {
-        ProtocolPrinterHeaderView::checksFilter(sessionIdList, headerList, lineEditText, filterMemory, dateTimeList, filtersMemory, lineNumber, 1);
+        SQLQueryBuilder::checksFilter(sessionIdList, headerList, lineEditText, filterMemory, dateTimeList, filtersMemory, lineNumber, SQLQueryBuilder::TypeColumn::DateTime);
 
     }else if((model->tableName() == tablesNamesList.at(0)) && (lineNumber == int(SpecColumnsNumb::SesRunTotalTime)))//"Test Reports"
     {
-        ProtocolPrinterHeaderView::checksFilter(sessionIdList, headerList, lineEditText, filterMemory, dateTimeList, filtersMemory, lineNumber, 1);
+        SQLQueryBuilder::checksFilter(sessionIdList, headerList, lineEditText, filterMemory, dateTimeList, filtersMemory, lineNumber, SQLQueryBuilder::TypeColumn::DateTime);
     }else
     {
-        ProtocolPrinterHeaderView::checksFilter(sessionIdList, headerList, lineEditText, filterMemory, dateTimeList, filtersMemory, lineNumber, 0);
+        SQLQueryBuilder::checksFilter(sessionIdList, headerList, lineEditText, filterMemory, dateTimeList, filtersMemory, lineNumber, SQLQueryBuilder::TypeColumn::String);
     }
     ///
-    //ProtocolPrinterHeaderView::checksFilter(model, nullptr, lineEditText, filterMemory, getFiltersMemory(), lineNumber, count, 0);
+
     QList<QString*> list = filtersMemory;
     for(auto var : list)
     {
-        qDebug() << "VAR: "<<  *var;
+        //qDebug() << "VAR: "<<  *var;
     }
 
-    qDebug() << "getFiltersMemory: " << filtersMemory;
-    qDebug() << "comboBoxColumnsMap: " << comboBoxColumnsMap;
+    //qDebug() << "getFiltersMemory: " << filtersMemory;
+    //qDebug() << "comboBoxColumnsMap: " << comboBoxColumnsMap;
 }

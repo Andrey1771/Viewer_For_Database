@@ -1,10 +1,9 @@
 #include "newmodel.h"
 #include "protocolprinterheaderview.h"
 #include "protocolprinteritemmodel.h"
+#include "sqlquerybuilder.h"
 
 #include <QDebug>
-#include <QTimer>
-
 
 NewModel::NewModel(ProtocolPrinterItemModel *amodel, QObject *parent) : QAbstractItemModel(parent)
 {
@@ -27,7 +26,7 @@ void NewModel::setTable(const QString &tableName)
     reset();
     model->setTable(tableName);
 
-    QString str = ProtocolPrinterHeaderView::filtersRQData(filter->getFilterMemoryList());// filtersMemory
+    QString str = SQLQueryBuilder::filtersRQData(filter->getFilterMemoryList());// filtersMemory
     if(!str.isEmpty())
         model->getQuery().exec("SELECT COUNT(*) FROM `" + model->tableName() + "` WHERE " + str + ";");// AS Count
     else
@@ -52,15 +51,14 @@ void NewModel::setProtocolFilter(ProtocolPrinterHeaderView *filter)
 
 void NewModel::setSignals()
 {
-    //connect(this->model, &ProtocolPrinterItemModel::filterChanged, this, &NewModel::reset);
     connect(this->model, &ProtocolPrinterItemModel::filterChanged, this, &NewModel::updateRowsFilters);
 }
 
 void NewModel::updateRowsFilters()
 {
     reset();
-    qDebug() << ProtocolPrinterHeaderView::filtersRQData(filter->getFilterMemoryList());
-    QString str = ProtocolPrinterHeaderView::filtersRQData(filter->getFilterMemoryList());// filtersMemory
+    qDebug() << SQLQueryBuilder::filtersRQData(filter->getFilterMemoryList());
+    QString str = SQLQueryBuilder::filtersRQData(filter->getFilterMemoryList());// filtersMemory
     if(!str.isEmpty())
         model->getQuery().exec("SELECT COUNT(*) FROM `" + model->tableName() + "` WHERE " + str + ";");// AS Count
     else
@@ -187,7 +185,7 @@ void NewModel::fetchMoreSecond()
 
     //Начало добавления строк в cache из БД
     beginInsertRows(QModelIndex(), 0, itemsToFetch - 1);// не уверен в числах
-    QString str = ProtocolPrinterHeaderView::filtersRQData(filter->getFilterMemoryList());// filtersMemory
+    QString str = SQLQueryBuilder::filtersRQData(filter->getFilterMemoryList());// filtersMemory
     if(!str.isEmpty())
         model->getQuery().exec("SELECT * FROM `"+model->tableName()+"` WHERE ROWID <= " + QString::number(seek - cacheSize) + " AND " + str + ";");
     else
@@ -298,8 +296,8 @@ void NewModel::magicLoad(int value)
         return;
 
     beginInsertRows(QModelIndex(), magic[0], magic[1] - 1);// -1 под вопросом
-    QString str = ProtocolPrinterHeaderView::filtersRQData(filter->getFilterMemoryList());// filtersMemory
-    if(!str.isEmpty())// сделать так везде
+    QString str = SQLQueryBuilder::filtersRQData(filter->getFilterMemoryList());// filtersMemory
+    if(!str.isEmpty())
         model->getQuery().exec("SELECT * FROM `"+model->tableName()+"` WHERE ROWID > " + QString::number(magic[0]) + " AND " + str + ";");
     else
         model->getQuery().exec("SELECT * FROM `"+model->tableName()+"` WHERE ROWID > " + QString::number(magic[0]) + ";");

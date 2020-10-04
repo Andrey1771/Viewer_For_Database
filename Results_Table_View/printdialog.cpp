@@ -1,5 +1,6 @@
 #include "printdialog.h"
 #include "ui_printdialog.h"
+
 #include "protocolprinteritemmodel.h"
 #include "printcombobox.h"
 #include "printdialogitemmodel.h"
@@ -7,18 +8,19 @@
 #include "XMLPrintSupport.h"
 #include "protocolprinteritemmodel.h"
 #include "xmlprintprogress.h"
+
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QDebug>
 #include <QtConcurrent/QtConcurrentRun>
 #include <QFutureWatcher>
 
-PrintDialog::PrintDialog(const QList<QString>& namesTables, ProtocolPrinterItemModel* model, ProtocolPrinterHeaderView* header, QSqlDatabase& db, QWidget *parent) :
+#include <QDebug>
+
+PrintDialog::PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel* model, ProtocolPrinterHeaderView* header, QSqlDatabase& db, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::PrintDialog)
 {
     ui->setupUi(this);
-
     printDialogItemModel = new PrintDialogItemModel(namesTables, model, header);
 
     ui->tableView_Table->setModel(printDialogItemModel);
@@ -72,6 +74,19 @@ void PrintDialog::startWork()
     ui->pushButton_Export->setEnabled(false);
 }
 
+void PrintDialog::dialogWarning(int countFiles)
+{
+    if(!countFiles)
+    {
+        QMessageBox::warning(nullptr, QObject::tr("Warning"),
+                             QObject::tr("The list of files to print is empty\n"
+                                         "Click Cancel to exit."), QMessageBox::Cancel);
+        qDebug() << "Файлов нет!";
+        return;
+    }
+    qDebug() << "Количество файлов: " << countFiles;
+}
+
 void PrintDialog::onExport()
 {
     QDir dir;
@@ -89,12 +104,14 @@ void PrintDialog::onExport()
     ui->progressBar_Progress->setVisible(true);
     ui->progressBar_Progress->setValue(0);
     connect(progress, &XMLPrintProgress::progressChanged, this, &PrintDialog::progressBarSetVal);
+    connect(progress, &XMLPrintProgress::countedFiles, this, &PrintDialog::dialogWarning);
     connect(&progress->watcher, &QFutureWatcher<void>::finished, this, &PrintDialog::finishedWork);
     startWork();
     switch(ui->comboBox_ExportChanger->currentIndex())
     {
     case(0)://"PDF + XML"
     {
+        qDebug() << "FiltersMemory: " << printDialogItemModel->getFiltersMemory();
         XMLPrintSupport::onExportDBAction(*db, "PDF + XML", dir.path(), progress, printDialogItemModel->getFiltersMemory());
         break;
     }
@@ -107,7 +124,7 @@ void PrintDialog::onExport()
     {
         XMLPrintSupport::onExportDBAction(*db, "XML", dir.path(), progress, printDialogItemModel->getFiltersMemory());
         break;
-    }
+    }//11/1/2000 9:11:04 - 05/2/2033 12:11:26 9:11:04
     default:
     {
         qDebug() << "Такого экспорта пока нет";
@@ -123,7 +140,7 @@ void PrintDialog::onCancel()
 
 void PrintDialog::launchFilePathWizard()
 {
-    QString strPath = QFileDialog::getExistingDirectory(nullptr, "Path to file save", QString());
+    QString strPath = QFileDialog::getExistingDirectory(nullptr, QObject::tr("Path to file save"), QString());
     ui->lineEdit_Directory->setText(strPath);
 }
 

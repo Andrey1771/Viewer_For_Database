@@ -21,7 +21,7 @@ class PrintDialog : public QDialog
     XMLPrintSupport* printSup{nullptr};
     const QList<QString> exportTypes{"PDF + XML", "PDF", "XML"};
 public:
-    explicit PrintDialog(const QList<QString>& namesTables, ProtocolPrinterItemModel *model, ProtocolPrinterHeaderView *header, QSqlDatabase& db, QWidget *parent = nullptr);
+    explicit PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel *model, ProtocolPrinterHeaderView *header, QSqlDatabase& db, QWidget *parent = nullptr);
     ~PrintDialog();
 public slots:
     void onAddRow();
@@ -32,11 +32,10 @@ public slots:
     void progressBarSetVal(float val);
     void finishedWork();
     void startWork();
+    void dialogWarning(int countFiles);
 
 private:
     Ui::PrintDialog *ui;
-    QString getFiltersMemory();
-    void updateMemoryFilters();
     XMLPrintProgress* progress{nullptr};
 
     // QWidget interface

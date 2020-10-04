@@ -31,11 +31,6 @@ public:
 
     QVector<LineEditExtended*> getLineVect();
 
-    ///TODO перенести в отдельный класс
-    static QString filtersRQData(QList<QString*> filterMemoryList);
-    static void checksFilter(ProtocolPrinterItemModel* model, ProtocolPrinterItemModel* model2, ProtocolPrinterHeaderView *headerView, const QString& str, QString& filterMemory, QList<QString*> filterMemoryList, int lineNumber, int type);
-    static void checksFilter(QList<QString>& sessionIdList/*Может быть пустым*/, QList<QString>headerList, const QString &str, QString &filterMemory, QList<QDateTime>& listAllDateTimeDb, QList<QString *> filterMemoryList, int lineNumber, int type);
-    static QList<int> makePrimaryFilter(ProtocolPrinterItemModel* model);
     QList<QString*> getFilterMemoryList(/*QVector<LineEditExtended*> lineVect*/);
 protected:
      void updateGeometries() override;
@@ -62,9 +57,7 @@ protected:
     QString primaryMemory;
     QList<int> listSelect;
 
-    //inline void checksFilter(const QString& str, LineEditExtended *line, int type);
-
-    static void setPrimaryFilter(ProtocolPrinterHeaderView *headerView, const QList <int>& list, bool reset = false);
+    void setPrimaryFilter(bool reset = false, QList<int> list = QList<int>());
 
 
 signals:

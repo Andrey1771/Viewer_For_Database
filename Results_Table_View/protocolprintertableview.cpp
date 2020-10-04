@@ -1,12 +1,11 @@
 #include "protocolprintertableview.h"
-
 #include "protocolprinteritemmodel.h"
 
 #include <QScrollBar>
 #include <QEvent>
 #include <QFocusEvent>
-
 #include <QMouseEvent>
+
 #include <QDebug>
 ProtocolPrinterTableView::ProtocolPrinterTableView(QWidget *parent) : QTableView (parent)
 {

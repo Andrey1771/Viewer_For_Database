@@ -12,8 +12,8 @@ private:
     /// TODO перенести в отдельный файл все констаты связанные с БД и таблицами
     const QStringList tablesNamesList{"Acceptance Test Reports"};// Те таблицы, которые будут поддерживать фильтр с временем
     enum class SpecColumnsNumb{
-        SesRunDateTime = 13,
-        SesRunTotalTime = 14
+        SesRunDateTime = 9,
+        SesRunTotalTime = 10
     };
     ///
     struct modelDataItem{
@@ -47,7 +47,7 @@ public:
     virtual bool removeRows(int row, int count, const QModelIndex &parent) override;
     virtual bool setData(const QModelIndex &index, const QVariant &value, int role) override;
     virtual Qt::ItemFlags flags(const QModelIndex &index) const override;
-    QMap<QString, QString *> getFiltersMemory();
+    QMap<QString, QList<QString *> > getFiltersMemory();
     void setFiltersMemory(QString &filterMemory, const QString &lineEditText, QList<QString> headerList, int lineNumber);
 };
 

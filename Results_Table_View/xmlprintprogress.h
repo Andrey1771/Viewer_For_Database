@@ -23,9 +23,10 @@ public:
 
     XMLPrintSupport *getPrintSup() const;
     void setPrintSup(XMLPrintSupport *value);
-
+    void sendCountFiles(int countFiles);
 signals:
     void progressChanged(float progress);
+    void countedFiles(int countFiles);
 
 };
 

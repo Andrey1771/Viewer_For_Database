@@ -63,10 +63,6 @@ void MainWindow::launchSetSettings()
     //variables
     numberTable = 0;
 
-    //log
-    //ui->plainTextEdit->hide();
-    //ui->log_Label->setText("");
-
     //comboBoxs
     ui->DBType_comboBox->addItems(databaseTypes);
 
@@ -85,7 +81,6 @@ void MainWindow::launchSetSettings()
     ui->tableView->resizeRowsToContents();
     ui->tableView->setHorizontalHeader(filter);
     newModel->setProtocolFilter(filter);
-
 
     //ScrollBar
     QScrollBar *scrollBar = new QScrollBar(Qt::Orientation::Vertical, ui->tableView);
@@ -125,9 +120,7 @@ void MainWindow::launchSetSettings()
     else
     {
         addDatabase();
-        ///
-        ui->groupBoxTable->setTitle("Table " + newModel->model->tableName());///TODO Bug - краш при неудачном запуске из коллекции
-        ///
+        ui->groupBoxTable->setTitle("Table " + newModel->model->tableName());
         //lineEdit
         ui->Directory_lineEdit->setText(newModel->model->database().databaseName());
     }
@@ -208,7 +201,7 @@ void MainWindow::addDatabase()
     ui->tableView_Sup->setModel(modelSup);
     modelSup->select();
 
-    ui->tableView_Sup->hideColumn(0);// скрываем Session ID
+    //ui->tableView_Sup->hideColumn(0);// скрываем Session ID
     //for (int i = 8; i < modelSup->columnCount(); ++i)
     //    ui->tableView_Sup->hideColumn(i);
 
@@ -447,8 +440,11 @@ void MainWindow::onExportDBAction()
         qDebug() << "onExportDbAction error";
         return;
     }
+    QList<QString> namesTables = getNamesTables();
+    qDebug() << "NAMES TABLES: " << namesTables;
+    namesTables.removeOne("sqlite_sequence");/// TODO Перенести с глобальными переменными
 
-    PrintDialog* printDialog = new PrintDialog(getNamesTables(), modelSup, filter, db, this);
+    PrintDialog* printDialog = new PrintDialog(namesTables, modelSup, filter, db, this);
     printDialog->exec();
 
 }

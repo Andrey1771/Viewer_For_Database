@@ -19,8 +19,8 @@ void PrintComboBox::paint(QPainter *painter, const QStyleOptionViewItem &option,
     comboboxstyle.rect.setHeight(6*option.rect.height()/8);
     comboboxstyle.state = QStyle::State_Active | QStyle::State_Enabled;
 
-    auto list = index.model()->data(index.model()->index(index.row(), index.column()), Qt::UserRole).toString().split("/");
-    unsigned int currentIndex = list.last().toInt();
+    auto list = index.model()->data(index.model()->index(index.row(), index.column()), Qt::UserRole).toStringList();
+    int currentIndex = list.last().toInt();
     list.pop_back();
     comboboxstyle.currentText = list.at(currentIndex);
 
@@ -50,8 +50,9 @@ void PrintComboBox::setModelData(QWidget *editor, QAbstractItemModel *model, con
 void PrintComboBox::setEditorData(QWidget *editor, const QModelIndex &index) const
 {
     QComboBox *comboBox = dynamic_cast<QComboBox*>(editor);
-    QStringList list = index.model()->data(index.model()->index(index.row(), index.column()), Qt::UserRole).toString().split("/");
-    unsigned int currentIndex = list.last().toInt();
+    QStringList list = index.model()->data(index.model()->index(index.row(), index.column()), Qt::UserRole).toStringList();
+
+    int currentIndex = list.last().toInt();
     list.pop_back();
     comboBox->addItems(list);
     comboBox->setCurrentIndex(currentIndex);
