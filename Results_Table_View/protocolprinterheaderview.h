@@ -14,6 +14,7 @@ class ProtocolPrinterHeaderView : public QHeaderView
     /// TODO перенести в отдельный файл все констаты связанные с БД и таблицами
     const QStringList tablesNamesList{"Acceptance Test Reports"};// Те таблицы, которые будут поддерживать фильтр с временем
     enum class SpecColumnsNumb{
+        SesId = 0,
         SesRunDateTime = 9,
         SesRunTotalTime = 10
     };
@@ -56,13 +57,14 @@ protected:
     int adjPosHint;
     QString primaryMemory;
     QList<int> listSelect;
-
+    QTableView *tableView{nullptr};// нужен для правильного обновления модели
     void setPrimaryFilter(bool reset = false, QList<int> list = QList<int>());
-
+private:
+    void seterPrimaryFilter(const QString& str);
 
 signals:
     void updateFiltersComp();
-
+    void updateNewModelLoad(int value);
 };
 
 #endif // PROTOCOLPRINTERHEADERVIEW_H

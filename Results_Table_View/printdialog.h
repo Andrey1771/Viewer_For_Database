@@ -1,14 +1,15 @@
 #ifndef PRINTDIALOG_H
 #define PRINTDIALOG_H
 
+#include "printprogress.h"
 #include <QDialog>
 
 class ProtocolPrinterItemModel;
 class PrintDialogItemModel;
 class ProtocolPrinterHeaderView;
 class QSqlDatabase;
-class XMLPrintSupport;
-class XMLPrintProgress;
+class PrintSupport;
+//class XMLPrintProgress;
 namespace Ui {
 class PrintDialog;
 }
@@ -18,11 +19,31 @@ class PrintDialog : public QDialog
     Q_OBJECT
     PrintDialogItemModel* printDialogItemModel{nullptr};
     QSqlDatabase* db;
-    XMLPrintSupport* printSup{nullptr};
-    const QList<QString> exportTypes{"PDF + XML", "PDF", "XML"};
+    PrintSupport* printSup{nullptr};
+    const QList<QString> exportTypes{"PDF + Excel", "PDF", "Excel"};
 public:
-    explicit PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel *model, ProtocolPrinterHeaderView *header, QSqlDatabase& db, QWidget *parent = nullptr);
+    explicit PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel *model, ProtocolPrinterHeaderView *header, QSqlDatabase& db, const QString &pathFile, QWidget *parent = nullptr);
     ~PrintDialog();
+
+    struct DataForSaver
+    {
+        QString pathSave;
+        QString pathFile;
+
+        DataForSaver(){this->pathSave = ""; this->pathFile = "";}
+        DataForSaver(QString pathSave, QString pathFile)
+        {
+            this->pathSave = pathSave;
+            this->pathFile = pathFile;
+        }
+        DataForSaver(const DataForSaver& dataForSave)
+        {
+            this->pathSave = dataForSave.pathSave;
+            this->pathFile = dataForSave.pathFile;
+        }
+    };
+    DataForSaver getPathForSaver();
+
 public slots:
     void onAddRow();
     void onRemoveRow();
@@ -33,10 +54,12 @@ public slots:
     void finishedWork();
     void startWork();
     void dialogWarning(int countFiles);
-
+    void messageFilePrinted(int type);
 private:
     Ui::PrintDialog *ui;
-    XMLPrintProgress* progress{nullptr};
+    PrintProgress* progress{nullptr};
+
+    QString lastPath;
 
     // QWidget interface
 protected:

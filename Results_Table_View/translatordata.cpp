@@ -1,12 +1,10 @@
 #include "translatordata.h"
 #include "protocolprinteritemmodel.h"
 
-#include <QDateTime>
-#include <QSqlDriver>
-#include <QTableView>
-
 #include <QDebug>
+
 QList<int> specialNumbersColumns = {10};// Для 10 column
+
 TranslatorData::TranslatorData(const QString &str)
 {
     dateTime.setTime(QTime(0, 0, 0));
@@ -74,7 +72,7 @@ QString TranslatorData::repairQString(const QString& str2, int k)// 11/01/2016 0
     }
 }
 
-QString TranslatorData::checkDateTimeWithModel(const QString &list0, const QString &list1, int lineNumber, QAbstractItemModel* model, const QString& type2, MaxMinDateTime maxMinType)
+QString TranslatorData::checkDateTimeWithModel(const QString &list0, const QString &list1, int lineNumber, QAbstractItemModel* model, const QString& type2, MaxMinType maxMinType)
 {
     QList <QDateTime> list2;
     QList<QString> sessionIdList;
@@ -83,12 +81,12 @@ QString TranslatorData::checkDateTimeWithModel(const QString &list0, const QStri
 
     return checkDateTime(sessionIdList, list0, list1, list2, type2, maxMinType);
 }
-QString TranslatorData::checkDateTimeWithoutModel(QList<QString>& sessionIdList, const QString &list0, const QString &list1, QList<QDateTime>& listAllDateTimeDb, const QString& type2, MaxMinDateTime maxMinType)
+QString TranslatorData::checkDateTimeWithoutModel(QList<QString>& sessionIdList, const QString &list0, const QString &list1, QList<QDateTime>& listAllDateTimeDb, const QString& type2, MaxMinType maxMinType)
 {
     return checkDateTime(sessionIdList, list0, list1, listAllDateTimeDb, type2, maxMinType);
 }
 
-QString TranslatorData::checkValueWithModel(const int value0, const int value1, int lineNumber, QAbstractItemModel* model, const QString& type2, MaxMinDateTime maxMinType)
+QString TranslatorData::checkValueWithModel(const int value0, const int value1, int lineNumber, QAbstractItemModel* model, const QString& type2, MaxMinType maxMinType)
 {
     QList <int> list2;
     QList<QString> sessionIdList;
@@ -97,17 +95,22 @@ QString TranslatorData::checkValueWithModel(const int value0, const int value1, 
 
     return checkValue(sessionIdList, value0, value1, list2, type2, maxMinType);
 }
-QString TranslatorData::checkValueWithoutModel(QList<QString>& sessionIdList, const int value0, const int value1, QList<int>& listAllValueDb, const QString& type2, MaxMinDateTime maxMinType)
+QString TranslatorData::checkValueWithoutModel(QList<QString>& sessionIdList, const int value0, const int value1, QList<int>& listAllValueDb, const QString& type2, MaxMinType maxMinType)
 {
     return checkValue(sessionIdList, value0, value1, listAllValueDb, type2, maxMinType);
 }
 
-QString TranslatorData::checkValue(QList<QString> &sessionIdNamesList, const int value0, const int value1, QList<int> &listAllValueDb, const QString &type2, TranslatorData::MaxMinDateTime maxMinType)
+QString TranslatorData::checkValue(QList<QString> &sessionIdNamesList, int value0, int value1, QList<int> &listAllValueDb, const QString &type2, TranslatorData::MaxMinType maxMinType)
 {
-    filterMemoryCreator(sessionIdNamesList, listAllValueDb, type2, value0, value1);
+
+    if(maxMinType == MaxMinType::Max)
+        value1 = INT_MAX;
+    if(maxMinType == MaxMinType::Min)
+        value0 = 0;
+    return filterMemoryCreator(sessionIdNamesList, listAllValueDb, type2, value0, value1);
 }
 
-QString TranslatorData::checkDateTime(QList<QString>& sessionIdNamesList, const QString &list0, const QString &list1, QList<QDateTime>& listAllDateTimeDb, const QString& type2, MaxMinDateTime maxMinType)
+QString TranslatorData::checkDateTime(QList<QString>& sessionIdNamesList, const QString &list0, const QString &list1, QList<QDateTime>& listAllDateTimeDb, const QString& type2, MaxMinType maxMinType)
 {
     QString req="";
     QDateTime dateTime[2];
@@ -116,9 +119,9 @@ QString TranslatorData::checkDateTime(QList<QString>& sessionIdNamesList, const 
     dateTime[0] = strDateTimeConv(list0);
     dateTime[1] = strDateTimeConv(list1);//00:00:00 - 12:11:26
 
-    if(maxMinType == MaxMinDateTime::Max)
+    if(maxMinType == MaxMinType::Max)
         dateTime[1] = QDateTime::fromString("23:59:59 12/31/9999", "HH:mm:ss MM/dd/yyyy");
-    if(maxMinType == MaxMinDateTime::Min)//< 11/1/2016 9:11:04
+    if(maxMinType == MaxMinType::Min)//< 11/1/2016 9:11:04
         dateTime[0] = QDateTime::fromString("00:00:00 01/01/0001", "HH:mm:ss MM/dd/yyyy");
 
     if(dateTime[0].isValid() && dateTime[1].isValid())
@@ -128,9 +131,9 @@ QString TranslatorData::checkDateTime(QList<QString>& sessionIdNamesList, const 
         dateTime[0] = strDateConv(list0);
         dateTime[1] = strDateConv(list1);
 
-        if(maxMinType == MaxMinDateTime::Max)
+        if(maxMinType == MaxMinType::Max)
             dateTime[1] = QDateTime::fromString("12/31/9999", "MM/dd/yyyy");
-        if(maxMinType == MaxMinDateTime::Min)
+        if(maxMinType == MaxMinType::Min)
             dateTime[0] = QDateTime::fromString("00/00/0000", "MM/dd/yyyy");
         //11/1/2000 9:11:04 - 05/2/2033 12:11:26 9:11:04 - 12:11:26
         if(dateTime[0].isValid() && dateTime[1].isValid())
@@ -142,9 +145,9 @@ QString TranslatorData::checkDateTime(QList<QString>& sessionIdNamesList, const 
             dateTime[0] = strTimeConv(list0);
             dateTime[1] = strTimeConv(list1);
 
-            if(maxMinType == MaxMinDateTime::Max)
+            if(maxMinType == MaxMinType::Max)
                 dateTime[1] = QDateTime::fromString("23:59:59", "HH:mm:ss");
-            if(maxMinType == MaxMinDateTime::Min)
+            if(maxMinType == MaxMinType::Min)
                 dateTime[0] = QDateTime::fromString("00:00:00", "HH:mm:ss");
 
             if(!dateTime[0].isValid() || !dateTime[1].isValid())
@@ -267,13 +270,25 @@ QString TranslatorData::filterMemoryCreator(QList<QString>& sessionIdList, QList
     sqlDateTimeRequestCreator(sessionIdList, req, listAllDateTimeDb, dateTime0, dateTime1, type2, typeFilter);
     return req;
 }
-void TranslatorData::sqlValueRequestCreator(QList<QString>& sessionIdList, QString& req/*строка может быть очень большой, чтобы избежать лишнего копирования*/, QList<int> &list2, const int value0, const int value1, const QString& type2)
+                                                                          /*строка может быть очень большой, чтобы избежать лишнего копирования*/
+void TranslatorData::sqlValueRequestCreator(QList<QString>& sessionIdList, QString& req, QList<int> &list2,
+                                            const int value0, const int value1, const QString& type2)
 {
+    req = "(`Session ID` IN (0";// такого ID нет
+
+    if(type2 == "")
+    {
+        for (int i=0; i < list2.size(); ++i)
+        {
+            if(list2[i] == value0)
+                req += ","+ sessionIdList.at(i); //Строка может быть очень большой
+        }
+    }
     if(type2 == "<")
     {
         for (int i=0; i < list2.size(); ++i)
         {
-            if(list2[i] < value1) // работает неправильно, если есть ошибки в дате(проверку не добавил, т к затратно и все равно потом будет проверка при вводе)
+            if(list2[i] < value1)
                 req += ","+ sessionIdList.at(i); //Строка может быть очень большой
         }
     }
@@ -281,7 +296,7 @@ void TranslatorData::sqlValueRequestCreator(QList<QString>& sessionIdList, QStri
     {
         for (int i=0; i < list2.size(); ++i)
         {
-            if(value0 < list2[i]) // работает неправильно, если есть ошибки в дате(проверку не добавил, т к затратно и все равно потом будет проверка при вводе)
+            if(value0 < list2[i])
                 req += ","+ sessionIdList.at(i); //Строка может быть очень большой
         }
     }
@@ -317,7 +332,7 @@ void TranslatorData::sqlValueRequestCreator(QList<QString>& sessionIdList, QStri
 
 void TranslatorData::sqlDateTimeRequestCreator(QList<QString>& sessionIdList, QString& req/*строка может быть очень большой, чтобы избежать лишнего копирования*/, QList <QDateTime>& list2, QDateTime& dateTime0, QDateTime& dateTime1, const QString& type2, TypeDateTimeFilter typeFilter)
 {///TODO реализовать паттерн state???
-    req = "(`Session ID` IN (0";// такого ID нет??????
+    req = "(`Session ID` IN (0";// такого ID нет
     switch(typeFilter)
     {
     case TypeDateTimeFilter::DateTime:

@@ -2,19 +2,19 @@
 #define MAINWINDOW_H
 
 #include "ui_MainWindow.h"
-#include "qsqlfield.h"
+//#include "qsqlfield.h"
 
 #include <QMainWindow>
 #include <QtSql/QSqlDatabase>
-#include <QTimer>
+#include "printdialog.h"
 
 class ProtocolPrinterItemModel;
 class ProtocolPrinterHeaderView;
 class ProtocolPrinterHeaderViewExtended;
-
+class QSortFilterProxyModel;
 class NewModel;
 namespace Ui {
-    class MainWindow;
+class MainWindow;
 }
 
 class MainWindow : public QMainWindow
@@ -54,11 +54,19 @@ private:
     void fillingComboBoxTableName();
     void addDatabase();
     void hideColumnsModels();
-    void saveDb(const QString& databaseName);
+
+    void savePathDb(const QString& databaseName);
+    void saveExportPath(QString = "");
+    void saveData(const QVariantHash& c);
+    const QString loadPathExportDialog();
+
     const QString loadDb();
     QList<QString> getNamesTables();
 
     void updateScrollBar(int count);
+    void ProxyNewModelLoad();
+    void ProxyModelSupLoad();
+    void loadSortModelsList();
 
     QList <QString> Names;
     int numberTable;
@@ -67,13 +75,24 @@ private:
     ProtocolPrinterItemModel *modelSup{nullptr};
     ProtocolPrinterHeaderView *filter{nullptr};
     ProtocolPrinterHeaderView *filter_Sup{nullptr};
+    QSortFilterProxyModel *proxyModelNewModel{nullptr};
+    QSortFilterProxyModel *proxyModelModelSup{nullptr};
+    QList<bool> sortTypeNewModelList;
+    QList<bool> sortTypeModelSupList;
+
     QSqlDatabase db;
-    QTimer waitFetchMoreTimer;
     const QStringList hidenColNewModelList {/*"Session ID", "Project Name", "LRU Name", "LRU S/N", "ATE P/N", "ATE S/N", "ATE S/W Ver"*/};
     const QStringList hidenColModelSupList {/*"Session ID", "Project Name", "LRU Name", "LRU S/N", "ATE P/N", "ATE S/N", "ATE S/W Ver"*/};
+
+    PrintDialog::DataForSaver exportDataForSaver;
+    QVariantHash c;
+
 public slots:
     void sliderUpdateModel(int action);
-
+    void updateModel();
+private slots:
+    void colomnNewModelFilter(int logicalIndex);
+    void colomnModelFilter(int logicalIndex);
 };
 
 #endif // MAINWINDOW_H

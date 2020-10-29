@@ -3,7 +3,6 @@
 #include "protocolprinteritemmodel.h"
 #include "newmodel.h"
 #include "protocolprinterheaderviewextended.h"
-#include "printdialog.h"
 
 #include <QHeaderView>
 #include <QMessageBox>
@@ -19,6 +18,7 @@
 #include <CollectionToJsonSaver.h>
 
 #include <QDebug>
+
 //Test
 //#include "randomizeddatabase.h"
 
@@ -27,8 +27,10 @@
 #include <QDateTime>
 #include <QAction>
 #include <QScrollBar>
+#include <QTimer>
 
 #include <QtConcurrent/QtConcurrentRun>
+#include <QSortFilterProxyModel>
 
 const QStringList databaseTypes{"sqlite3"};
 
@@ -41,20 +43,37 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     QVariantHash c;
     c.insert("path_to_db", "...");
+    c.insert("path_to_export", "");
     ICollection coll(c);
     CollectionFromJsonLoader loader("./results_table_view_settings.json");
     CollectionToJsonSaver saver("./results_table_view_settings.json");
     coll.saveCollection(&saver);
     coll.loadCollection(&loader);
-
 }
 
 MainWindow::~MainWindow()
-{
-    if(this->newModel->model->database().databaseName() != "")
-        saveDb(this->newModel->model->database().databaseName());
-    delete newModel->model;
-    delete newModel;
+{   
+    if(newModel != nullptr && newModel->model != nullptr && newModel->model->database().databaseName() != "")
+        savePathDb(this->newModel->model->database().databaseName());
+    else
+        savePathDb("...");
+
+    QDir dir;
+    dir.setPath(exportDataForSaver.pathFile);
+
+    if(exportDataForSaver.pathFile != "" && dir.exists())
+        saveExportPath();
+    else
+        saveExportPath("");
+
+    saveData(c);
+
+    if(newModel != nullptr && newModel->model != nullptr)
+        delete newModel->model;
+    if(newModel != nullptr)
+        delete newModel;
+    if(modelSup != nullptr)
+        delete modelSup;
     delete ui;
 }
 
@@ -67,7 +86,7 @@ void MainWindow::launchSetSettings()
     ui->DBType_comboBox->addItems(databaseTypes);
 
     //model
-    ProtocolPrinterItemModel *model = new ProtocolPrinterItemModel;
+    ProtocolPrinterItemModel *model = new ProtocolPrinterItemModel;/// TODO Важно избавиться от него!!!
     modelSup = new ProtocolPrinterItemModel;
     newModel = new NewModel(model);
 
@@ -102,6 +121,7 @@ void MainWindow::launchSetSettings()
     ui->tableView_Sup->setHorizontalHeader(filter_Sup);
     ui->tableView_Sup->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableView_Sup->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
     //TableView_Sup
 
     //labels
@@ -109,25 +129,20 @@ void MainWindow::launchSetSettings()
 
     //connect database
     QString str = loadDb();
-    qDebug() << str;
+    qDebug() << "PathDb" << str;
     if(!createConnection(str))
     {
-        QMessageBox::warning(nullptr, QObject::tr("Cannot open database"),
-                             QObject::tr("Unable to establish a database connection.\n"
-                                         "Click Cancel to exit."), QMessageBox::Cancel);
-
     }
     else
     {
         addDatabase();
-        ui->groupBoxTable->setTitle("Table " + newModel->model->tableName());
+        ui->groupBoxTable->setTitle("Table: " + newModel->model->tableName());
         //lineEdit
         ui->Directory_lineEdit->setText(newModel->model->database().databaseName());
+
     }
 
-
     //connects
-    //connect(ui->pushButtonHideShowLog, &QPushButton::clicked, this, &MainWindow::hideShowLog);
     connect(ui->TableName_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTable(int)));
     connect(ui->Directory_pushButton, &QPushButton::clicked, this, &MainWindow::launchWizard);
     connect(ui->Directory_lineEdit, SIGNAL(returnPressed()), this, SLOT(createConnection()));
@@ -138,8 +153,65 @@ void MainWindow::launchSetSettings()
     connect(ui->tableView_Sup, &ProtocolPrinterTableView::selectionSet, filter_Sup, &ProtocolPrinterHeaderView::updateFilter2);
 
     connect(ui->tableView->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::sliderUpdateModel);
-    //Logger
+    connect(newModel, &NewModel::dataChanged, this, &MainWindow::updateModel);
 
+    connect(filter, &QHeaderView::sectionClicked, this, &MainWindow::colomnNewModelFilter);
+    connect(filter_Sup, &QHeaderView::sectionClicked, this, &MainWindow::colomnModelFilter);
+    
+    ///TODO FIX BUG
+    //connect(newModel->model, &ProtocolPrinterItemModel::TableChanged, );
+    ///TODO FIX BUG
+    /// 
+    exportDataForSaver.pathFile = loadPathExportDialog();
+}
+
+void MainWindow::ProxyNewModelLoad()
+{
+    proxyModelNewModel = new QSortFilterProxyModel(this);
+    proxyModelNewModel->setSourceModel(newModel);
+    proxyModelNewModel->setDynamicSortFilter(true);
+    ui->tableView->setModel(proxyModelNewModel);
+}
+void MainWindow::ProxyModelSupLoad()
+{
+    proxyModelModelSup = new QSortFilterProxyModel(this);
+    proxyModelModelSup->setSourceModel(modelSup);
+    proxyModelModelSup->setDynamicSortFilter(true);
+    ui->tableView_Sup->setModel(proxyModelModelSup);
+}
+
+void MainWindow::colomnNewModelFilter(int logicalIndex)
+{
+    newModel->magicAllLoad();
+    qDebug() << "sortTypeNewModel " << sortTypeNewModelList << logicalIndex;
+    if(sortTypeNewModelList.at(logicalIndex))
+    {
+        ui->tableView->sortByColumn(logicalIndex, Qt::SortOrder::AscendingOrder);
+    }
+    else
+    {
+        ui->tableView->sortByColumn(logicalIndex, Qt::SortOrder::DescendingOrder);
+    }
+    sortTypeNewModelList[logicalIndex] = !sortTypeNewModelList.at(logicalIndex);
+}
+
+void MainWindow::colomnModelFilter(int logicalIndex)
+{
+    modelSup->allRowLoad();
+    if(sortTypeModelSupList.at(logicalIndex))
+    {
+        ui->tableView_Sup->sortByColumn(logicalIndex, Qt::SortOrder::AscendingOrder);
+    }
+    else
+    {
+        ui->tableView_Sup->sortByColumn(logicalIndex, Qt::SortOrder::DescendingOrder);
+    }
+    sortTypeModelSupList[logicalIndex] = !sortTypeModelSupList.at(logicalIndex);
+}
+
+void MainWindow::updateModel()
+{
+    ui->tableView->verticalScrollBar()->valueChanged(ui->tableView->verticalScrollBar()->value());
 }
 
 QList<QString> MainWindow::getNamesTables()
@@ -171,6 +243,7 @@ void MainWindow::fillingComboBoxTableName()
 void MainWindow::addDatabase()
 {
     fillingComboBoxTableName();
+
     //TableView
     ui->TableName_comboBox->setCurrentText(Names[numberTable]);
     if(newModel->model->database().databaseName().lastIndexOf("/") != -1)
@@ -187,7 +260,7 @@ void MainWindow::addDatabase()
     filter->clearPrimaryMemory();
     filter->update(newModel->model);
 
-    ui->groupBoxTable->setTitle("Table " + newModel->model->tableName());
+    ui->groupBoxTable->setTitle("Table: " + newModel->model->tableName());
     ui->Directory_lineEdit->setText(newModel->model->database().databaseName());
 
     newModel->setSignals();
@@ -211,6 +284,25 @@ void MainWindow::addDatabase()
     filter_Sup->update(modelSup);
     filter_Sup->setSecondFilterDatabase(newModel->model, filter);
     //TableView_Sup
+
+    loadSortModelsList();
+
+    ProxyNewModelLoad();
+    ProxyModelSupLoad();
+}
+
+void MainWindow::loadSortModelsList()
+{
+    sortTypeNewModelList.clear();
+    sortTypeModelSupList.clear();
+    for (int i = 0; i < newModel->model->getNamesColumns().size(); ++i)
+    {
+        sortTypeNewModelList.push_back(false);
+    }
+    for (int i = 0; i < modelSup->getNamesColumns().size(); ++i)
+    {
+        sortTypeModelSupList.push_back(false);
+    }
 }
 
 void MainWindow::hideColumnsModels()
@@ -237,10 +329,21 @@ void MainWindow::hideColumnsModels()
     }
 }
 
-void MainWindow::saveDb(const QString& databaseName)
+void MainWindow::savePathDb(const QString& databaseName)
 {
-    QVariantHash c;
     c.insert("path_to_db", databaseName);
+}
+
+void MainWindow::saveExportPath(QString str)
+{
+    if(str == "")
+        c.insert("path_to_export", exportDataForSaver.pathFile);
+    else
+        c.insert("path_to_export", str);
+}
+
+void MainWindow::saveData(const QVariantHash& c)
+{
     ICollection coll(c);
     CollectionToJsonSaver saver("results_table_view_settings.json");//./results_table_view_settings.json
     coll.saveCollection(&saver);
@@ -290,38 +393,23 @@ void MainWindow::setTable(int index)
         filter->update(newModel->model);
 
         ui->TableName_comboBox->setCurrentText(Names[index]);
-        ui->groupBoxTable->setTitle("Table " + newModel->model->tableName());
+        ui->groupBoxTable->setTitle("Table: " + newModel->model->tableName());
     }
 }
-
-//void MainWindow::hideShowLog()
-//{
-
-////    if(!ui->plainTextEdit->isHidden())
-////    {
-////        ui->pushButtonHideShowLog->setText("Show log");
-////        ui->plainTextEdit->hide();
-////        ui->log_Label->setText("");
-////    }
-////    else
-////    {
-////        ui->pushButtonHideShowLog->setText("Hide log");
-////        ui->plainTextEdit->show();
-////        ui->log_Label->setText("");
-////    }
-//}
 
 void MainWindow::hideShowSup()
 {
     if(!ui->tableView_Sup->isHidden())
     {
-        ui->pushButtonHideShowSup->setText("Show sup");
+        //ui->pushButtonHideShowSup->setText("Hide/Show Acceptance Tests Reports Table");
         ui->tableView_Sup->hide();
+        ui->verticalLayoutViews->setStretch(0, 0);
     }
     else
     {
-        ui->pushButtonHideShowSup->setText("Hide sup");
+        //ui->pushButtonHideShowSup->setText("Hide/Show Acceptance Tests Reports Table");
         ui->tableView_Sup->show();
+        ui->verticalLayoutViews->setStretch(0, 1);
     }
 }
 
@@ -366,7 +454,10 @@ bool MainWindow::createConnection(const QString& fileName)
     newModel = new NewModel(new ProtocolPrinterItemModel, this);
     newModel->filter = filter;
     modelSup = new ProtocolPrinterItemModel(this);
+
+    loadSortModelsList();
     emit connectionDone();
+
     return true;
 }
 
@@ -391,6 +482,11 @@ void MainWindow::disconnect()
             newModel = nullptr;
             modelSup = nullptr;
 
+            delete proxyModelModelSup;
+            delete proxyModelNewModel;
+            proxyModelModelSup = nullptr;
+            proxyModelNewModel = nullptr;
+
             db.close();
             db = QSqlDatabase();
 
@@ -401,8 +497,9 @@ void MainWindow::disconnect()
             Names.clear();
             ui->Connect_label->setText("Connected to \"\" database");
             ui->Directory_lineEdit->setText("");
-            ui->groupBoxTable->setTitle("Table");
-            saveDb(databaseName);
+            ui->groupBoxTable->setTitle("Table:");
+            savePathDb(databaseName);
+
         }
 }
 
@@ -444,10 +541,24 @@ void MainWindow::onExportDBAction()
     qDebug() << "NAMES TABLES: " << namesTables;
     namesTables.removeOne("sqlite_sequence");/// TODO Перенести с глобальными переменными
 
-    PrintDialog* printDialog = new PrintDialog(namesTables, modelSup, filter, db, this);
+    PrintDialog* printDialog = new PrintDialog(namesTables, modelSup, filter, db, exportDataForSaver.pathFile, this);
     printDialog->exec();
-
+    PrintDialog::DataForSaver dataForSaver(printDialog->getPathForSaver());
+    exportDataForSaver.pathFile = dataForSaver.pathFile;
+    exportDataForSaver.pathSave = dataForSaver.pathSave;
+    delete printDialog;
 }
+
+const QString MainWindow::loadPathExportDialog()
+{
+    QVariantHash c;
+    ICollection coll(c);
+    CollectionFromJsonLoader loader("results_table_view_settings.json");
+    coll.loadCollection(&loader);
+    QString str = coll.getCollection().value("path_to_export").toString();
+    return str;
+}
+
 
 void MainWindow::onQuitAction()
 {

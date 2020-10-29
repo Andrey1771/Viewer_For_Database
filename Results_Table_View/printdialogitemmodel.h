@@ -1,36 +1,59 @@
 #ifndef PRINTDIALOGITEMMODEL_H
 #define PRINTDIALOGITEMMODEL_H
+#include "protocolprinterheaderview.h"
+
 #include <QAbstractItemModel>
+#include <QComboBox>
 
 class QComboBox;
-class ProtocolPrinterHeaderView;
 class ProtocolPrinterItemModel;
-
 class PrintDialogItemModel : public QAbstractItemModel
 {
 private:
     /// TODO перенести в отдельный файл все констаты связанные с БД и таблицами
     const QStringList tablesNamesList{"Acceptance Test Reports"};// Те таблицы, которые будут поддерживать фильтр с временем
     enum class SpecColumnsNumb{
+        SesId = 0,
         SesRunDateTime = 9,
         SesRunTotalTime = 10
     };
     ///
-    struct modelDataItem{
-        QComboBox *DbTable;
-        QComboBox *Column;
-        ProtocolPrinterHeaderView *filter;
+    struct ModelDataItem{
+        QComboBox *dbTable{nullptr};
+        QComboBox *column{nullptr};
+        ProtocolPrinterHeaderView *filter{nullptr};
+        ~ModelDataItem()
+        {
+            if(dbTable != nullptr)
+                delete dbTable;
+            if(column != nullptr)
+                delete column;
+            if(filter != nullptr)
+                delete filter;
+        }
     };
-    QList<QString>nameColumns = {"DB table", "Column", "Filter"};
-    QVector<modelDataItem>modelData;
+    QList<QString> nameColumns = {"DB table", "Column", "Filter"};
+    QVector<ModelDataItem> modelData;
 
 
     QList<QString> namesTables;
-    QMap<int, int> comboBoxTablesMap;
-    QMap<int, int> comboBoxColumnsMap;
+    //QMap<int, int> comboBoxTablesMap;
+    //QMap<int, int> comboBoxColumnsMap;
     ProtocolPrinterItemModel* model;
-    QMap<int, QString> filtersMemoryMap;
-    QList<QString*> filtersMemory;
+    //QMap<int, QString> filtersMemoryMap;
+    QList<QString*> filtersSQLMemory;
+
+    struct RowData
+    {
+        int tableNumber;
+        int columnNumber;
+        QString filterMemory;
+
+        RowData(){tableNumber = 0; columnNumber = 0; filterMemory = "";}
+    };
+    QVector<RowData> rowsDataVector;
+
+    QList<QString*> makeFiltersMemory();
 
 public:
     PrintDialogItemModel(const QList<QString> &namesTables, ProtocolPrinterItemModel *model, ProtocolPrinterHeaderView *header);
@@ -49,6 +72,7 @@ public:
     virtual Qt::ItemFlags flags(const QModelIndex &index) const override;
     QMap<QString, QList<QString *> > getFiltersMemory();
     void setFiltersMemory(QString &filterMemory, const QString &lineEditText, QList<QString> headerList, int lineNumber);
+
 };
 
 #endif // PRINTDIALOGITEMMODEL_H

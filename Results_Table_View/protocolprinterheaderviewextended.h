@@ -10,7 +10,6 @@ class ProtocolPrinterHeaderViewExtended : public ProtocolPrinterHeaderView
 public:
     ProtocolPrinterHeaderViewExtended(QTableView *parent);
 
-
     // ProtocolPrinterHeaderView interface
 public:
     virtual void startSetSettings(QTableView *parent) override;

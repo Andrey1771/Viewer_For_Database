@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Printer dialog</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <property name="spacing">
@@ -156,7 +156,7 @@
         <number>2</number>
        </property>
        <item>
-        <widget class="QTableView" name="tableView_Table"/>
+        <widget class="PrintDialogTableView" name="tableView_Table"/>
        </item>
       </layout>
      </item>
@@ -223,6 +223,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PrintDialogTableView</class>
+   <extends>QTableView</extends>
+   <header>printdialogtableview.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

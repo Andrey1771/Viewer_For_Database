@@ -33,7 +33,7 @@
     <item>
      <widget class="QGroupBox" name="TableSettings_groupBox">
       <property name="title">
-       <string>Table settings</string>
+       <string>Database settings</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
@@ -240,7 +240,10 @@
         <item>
          <widget class="QGroupBox" name="groupBox">
           <property name="title">
-           <string>Sup</string>
+           <string>Acceptance Test Reports</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1">
            <property name="spacing">
@@ -261,7 +264,7 @@
            <item>
             <widget class="QPushButton" name="pushButtonHideShowSup">
              <property name="text">
-              <string>Hide sup</string>
+              <string>Hide/Show Acceptance Tests Reports Table</string>
              </property>
             </widget>
            </item>
@@ -281,7 +284,10 @@
         <item>
          <widget class="QGroupBox" name="groupBoxTable">
           <property name="title">
-           <string>Table</string>
+           <string>Table:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <property name="spacing">

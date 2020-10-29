@@ -1,12 +1,8 @@
 #include "protocolprintertableview.h"
 #include "protocolprinteritemmodel.h"
 
-#include <QScrollBar>
-#include <QEvent>
 #include <QFocusEvent>
-#include <QMouseEvent>
 
-#include <QDebug>
 ProtocolPrinterTableView::ProtocolPrinterTableView(QWidget *parent) : QTableView (parent)
 {
 }
@@ -31,13 +27,3 @@ void ProtocolPrinterTableView::mousePressEvent(QMouseEvent *event)
     return QTableView::mousePressEvent(event);
 }
 
-bool ProtocolPrinterTableView::eventFilter(QObject *watched, QEvent *event)
-{
-    return QTableView::eventFilter(watched, event);
-}
-
-
-void ProtocolPrinterTableView::verticalScrollbarAction(int action)
-{
-    return QTableView::verticalScrollbarAction(action);
-}

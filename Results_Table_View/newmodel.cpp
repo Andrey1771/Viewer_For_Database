@@ -92,11 +92,6 @@ void NewModel::reset()
     endResetModel();
 }
 
-void NewModel::addCacheElements(int scrollCount)
-{
-
-}
-
 
 int NewModel::rowCount(const QModelIndex &parent) const
 {
@@ -113,29 +108,30 @@ QVariant NewModel::data(const QModelIndex &index, int role) const
     if(!index.isValid())
         return QVariant();
 
+    if((role == Qt::DisplayRole || role == Qt::EditRole) && index.column() == 0)//0 колонка - это Session ID
+        return cacheData.at(index.row()).first.at(index.column()).toInt();
+
     if(role == Qt::DisplayRole || role == Qt::EditRole)
         return cacheData.at(index.row()).first.at(index.column());//cacheData.at(index.row()).at(index.column())
 
     return QVariant();
 }
 
-
-void NewModel::fetchMore(const QModelIndex &parent)
+void NewModel::fetchMore(const QModelIndex &/*parent*/)// Идея такова, он выз один раз, заполняет пустыми элементами, все остальное делает magicLoad
 {
-    int itemsToFetch = modelAllRowCount;
+    int itemsToFetch = 0;
+    itemsToFetch = modelAllRowCount;
     beginInsertRows(QModelIndex(), 0, itemsToFetch - 1);
     QVector<QString> vector;
 
     for (int j = 0; j < model->columnCount(); ++j)
-                vector.push_back("");
+        vector.push_back("");
     cacheData.fill(QPair<QVector<QString>, int>(vector, 0), itemsToFetch);
     seek += itemsToFetch;
     cacheSize += itemsToFetch;
     endInsertRows();
     emit rowsAdded(itemsToFetch);
 }
-
-
 
 /**
  * type: 1 - up, 2 - down
@@ -175,76 +171,6 @@ void NewModel::removeCacheElements(int type, int itemsToFetch)// удаляет 
     }
 }
 
-
-void NewModel::fetchMoreSecond()
-{
-    int remainder = seek - cacheSize;
-    int itemsToFetch = qMin(cacheMaxSize, remainder);
-    if (itemsToFetch <= 0)
-        return;
-
-    //Начало добавления строк в cache из БД
-    beginInsertRows(QModelIndex(), 0, itemsToFetch - 1);// не уверен в числах
-    QString str = SQLQueryBuilder::filtersRQData(filter->getFilterMemoryList());// filtersMemory
-    if(!str.isEmpty())
-        model->getQuery().exec("SELECT * FROM `"+model->tableName()+"` WHERE ROWID <= " + QString::number(seek - cacheSize) + " AND " + str + ";");
-    else
-        model->getQuery().exec("SELECT * FROM `"+model->tableName()+"` WHERE ROWID <= " + QString::number(seek - cacheSize) + ";");
-
-    QVector<QString> vector;
-    model->getQuery().last();
-    for (int i = itemsToFetch - 1; i > -1 ; --i)
-    {
-        for (int j = 0; j < model->columnCount(); ++j)
-            vector.push_back(model->getQuery().value(j).toString());
-
-        cacheData.push_back(QPair<QVector<QString>, int>(vector, i));
-        vector.clear();
-        model->getQuery().previous();
-    }
-
-    model->getQuery().finish();
-    model->getQuery().exec();
-
-    seek -= itemsToFetch;
-    cacheSize += itemsToFetch;
-    endInsertRows();
-    //Конец добавления строк в cache из БД
-
-
-    QPair<QVector<QString>, int> buf;
-    if(cacheSize - itemsToFetch*2 == 0)// если количество подгружаемых элементов меньше cacheSize, то останутся элементы, которые будут находится не на своем месте
-    {
-        removeCacheElements(2, itemsToFetch);
-        for(int i = cacheSize - 1; i >  -1 ; --i)
-        {
-            buf = cacheData.at(i);
-            cacheData.remove(i);
-            cacheData.push_back(buf);
-        }
-    }
-    else
-    {
-        removeCacheElements(1, itemsToFetch);
-        int i = cacheSize - 1;
-        for(; i > cacheSize - itemsToFetch -1 ; --i)
-        {
-            buf = cacheData.at(i);
-            cacheData.remove(i);
-            cacheData.push_back(buf);
-        }
-
-        for (int j = 0; j <= i; ++j)
-        {
-            buf = cacheData.at(0);
-            cacheData.remove(0);
-            cacheData.push_back(buf);
-        }
-    }
-
-    emit rowsAdded((-itemsToFetch));
-}
-
 bool NewModel::canFetchMore(const QModelIndex &parent) const
 {
     if (parent.isValid())
@@ -262,7 +188,7 @@ QVariant NewModel::headerData(int section, Qt::Orientation orientation, int role
 }
 
 
-QModelIndex NewModel::index(int row, int column, const QModelIndex &parent) const
+QModelIndex NewModel::index(int row, int column, const QModelIndex &/*parent*/) const
 {
     if(column > model->columnCount())
         return QModelIndex();
@@ -270,9 +196,34 @@ QModelIndex NewModel::index(int row, int column, const QModelIndex &parent) cons
     return createIndex(row,column);
 }
 
-QModelIndex NewModel::parent(const QModelIndex &child) const
+QModelIndex NewModel::parent(const QModelIndex &/*child*/) const
 {
     return QModelIndex();
+}
+
+
+void NewModel::loadItems(const int leftBorder, const int rightBorder, const int itemsToFetch)
+{
+    beginInsertRows(QModelIndex(), leftBorder, rightBorder - 1);// -1 под вопросом
+    QString str = SQLQueryBuilder::filtersRQData(filter->getFilterMemoryList());// filtersMemory
+    if(!str.isEmpty())
+        model->getQuery().exec("SELECT * FROM `" + model->tableName() + "` WHERE ROWID > " + QString::number(leftBorder) + " AND " + str + ";");
+    else
+        model->getQuery().exec("SELECT * FROM `" + model->tableName() + "` WHERE ROWID > " + QString::number(leftBorder) + ";");
+
+    QVector<QString> vector;
+    model->getQuery().next();
+    for (int i = 0; i < itemsToFetch; ++i)
+    {
+        for (int j = 0; j < model->columnCount(); ++j)
+            vector.push_back(model->getQuery().value(j).toString());
+
+        cacheData.replace(i + leftBorder, QPair<QVector<QString>, int>(vector, 1));
+        vector.clear();
+        model->getQuery().next();
+    }
+    model->getQuery().finish();
+    model->getQuery().exec();
 }
 
 void NewModel::magicLoad(int value)
@@ -282,39 +233,39 @@ void NewModel::magicLoad(int value)
         return;
     }
 
-    int magic[2];
-    magic[0] = value - cacheMaxSize/2;
-    if(magic[0] < 0)
-        magic[0] = 0;
+    int leftBorder = value - cacheMaxSize / 2;
+    if(leftBorder < 0)
+        leftBorder = 0;
 
-    magic[1] = value + cacheMaxSize/2;
-    if(magic[1] > modelAllRowCount)
-        magic[1] = modelAllRowCount;
+    int rightBorder = value + cacheMaxSize / 2;
+    if(rightBorder > modelAllRowCount)
+        rightBorder = modelAllRowCount;
 
-    int itemsToFetch = magic[1] - magic[0];
+    int itemsToFetch = rightBorder - leftBorder;
     if (itemsToFetch <= 0)
         return;
 
-    beginInsertRows(QModelIndex(), magic[0], magic[1] - 1);// -1 под вопросом
-    QString str = SQLQueryBuilder::filtersRQData(filter->getFilterMemoryList());// filtersMemory
-    if(!str.isEmpty())
-        model->getQuery().exec("SELECT * FROM `"+model->tableName()+"` WHERE ROWID > " + QString::number(magic[0]) + " AND " + str + ";");
-    else
-        model->getQuery().exec("SELECT * FROM `"+model->tableName()+"` WHERE ROWID > " + QString::number(magic[0]) + ";");
-
-
-    QVector<QString> vector;
-    model->getQuery().next();
-    for (int i = 0; i < itemsToFetch; ++i)
-    {
-        for (int j = 0; j < model->columnCount(); ++j)
-            vector.push_back(model->getQuery().value(j).toString());
-
-        cacheData.replace(i + magic[0], QPair<QVector<QString>, int>(vector, 1));
-        vector.clear();
-        model->getQuery().next();
-    }
-    model->getQuery().finish();
-    model->getQuery().exec();
+    loadItems(leftBorder, rightBorder, itemsToFetch);
 }
 
+void NewModel::magicAllLoad()
+{
+    if(cacheData.isEmpty())//Исключение, возникает после reset
+    {
+        return;
+    }
+
+    int leftBorder = 0;
+    int rightBorder = modelAllRowCount;
+
+    int itemsToFetch = rightBorder - leftBorder;
+    if (itemsToFetch <= 0)
+        return;
+
+    loadItems(leftBorder, rightBorder, itemsToFetch);
+}
+
+void NewModel::sort(int column, Qt::SortOrder order)
+{
+    return QAbstractItemModel::sort(column, order);
+}

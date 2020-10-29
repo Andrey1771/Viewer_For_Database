@@ -1,10 +1,8 @@
 #include "lineeditextended.h"
 
-#include <QEvent>
 #include <QDebug>
 #include <QToolButton>
 #include <QStyle>
-#include <QPixmap>
 LineEditExtended::LineEditExtended(const int number, QWidget *parent) : QLineEdit(parent)
 {
     this->number = number;

@@ -9,7 +9,6 @@ PrintComboBox::PrintComboBox(QObject *parent) : QAbstractItemDelegate (parent)
 
 void PrintComboBox::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
-
     QStyleOptionComboBox comboboxstyle;
 
     comboboxstyle.rect = option.rect;
@@ -35,7 +34,7 @@ QSize PrintComboBox::sizeHint(const QStyleOptionViewItem &option, const QModelIn
 {
     if(index.isValid())
     {
-        return 6*option.rect.size()/8;
+        return 6 * option.rect.size() / 8;
     }
     return QSize();
 }
@@ -58,14 +57,14 @@ void PrintComboBox::setEditorData(QWidget *editor, const QModelIndex &index) con
     comboBox->setCurrentIndex(currentIndex);
 }
 
-QWidget *PrintComboBox::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
+QWidget *PrintComboBox::createEditor(QWidget *parent, const QStyleOptionViewItem &/*option*/, const QModelIndex &/*index*/) const
 {
     QComboBox * editor = new QComboBox(parent);
 
     return editor;
 }
 
-void PrintComboBox::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const
+void PrintComboBox::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &/*index*/) const
 {
     QStyleOptionComboBox comboboxstyle;
 

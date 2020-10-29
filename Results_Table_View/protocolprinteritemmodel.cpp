@@ -4,9 +4,6 @@
 #include <QSqlRecord>
 #include <QSqlDriver>
 
-#include <QEvent>
-#include <QDebug>
-#include <QElapsedTimer>
 ProtocolPrinterItemModel::ProtocolPrinterItemModel(QObject *parent) : QSqlTableModel (parent)
 {
 }
@@ -75,4 +72,12 @@ void ProtocolPrinterItemModel::setFilter(const QString &filter)
     emit filterChanged();
     QSqlTableModel::setFilter(filter);
     return ;
+}
+
+void ProtocolPrinterItemModel::allRowLoad()
+{
+    while(canFetchMore(QModelIndex()))
+    {
+        fetchMore(QModelIndex());
+    }
 }

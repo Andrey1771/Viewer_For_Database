@@ -19,13 +19,6 @@ protected:
     virtual void focusInEvent(QFocusEvent *event) override;
     virtual void mousePressEvent(QMouseEvent *event) override;
 
-    // QObject interface
-public:
-    virtual bool eventFilter(QObject *watched, QEvent *event) override;
-
-    // QAbstractItemView interface
-protected slots:
-    virtual void verticalScrollbarAction(int action) override;
 };
 
 #endif // PROTOCOLPRINTETABLEVIEW_H

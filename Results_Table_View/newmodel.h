@@ -26,9 +26,8 @@ public:
 public slots:
     bool select();
     void reset();
-    void addCacheElements(int scrollCount);
     void magicLoad(int value);
-
+    void magicAllLoad();
 //ProtocolPrinterItemModel
 
 // QAbstractItemModel interface
@@ -44,11 +43,6 @@ public:
     virtual QModelIndex parent(const QModelIndex &child) const override;
 
 public slots:
-    /**
-     * @brief fetchMoreSecond - добавляем строки сверху
-     * Требует отдельного соединения с ScrollBar
-     */
-    void fetchMoreSecond();
     virtual bool canFetchMore(const QModelIndex &parent) const override;
 
 private:
@@ -59,11 +53,18 @@ private:
     int seek{0};
     int modelAllRowCount{0};
 
+    void loadItems(const int leftBorder, const int rightBorder, const int itemsToFetch);
+
 private slots:
     void updateRowsFilters();
 
 signals:
     void rowsAdded(int count);
+
+
+    // QAbstractItemModel interface
+public:
+    virtual void sort(int column, Qt::SortOrder order) override;
 };
 
 #endif // NEWMODEL_H

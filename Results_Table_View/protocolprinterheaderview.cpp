@@ -4,7 +4,6 @@
 #include "sqlquerybuilder.h"
 
 #include <QApplication>
-#include <QSqlTableModel>
 #include <QScrollBar>
 #include <QTableView>
 
@@ -12,6 +11,7 @@
 
 ProtocolPrinterHeaderView::ProtocolPrinterHeaderView(QTableView *parent) : QHeaderView (Qt::Horizontal, parent)
 {
+    tableView = parent;
     startSetSettings(parent);
 }
 
@@ -25,7 +25,7 @@ void ProtocolPrinterHeaderView::startSetSettings(QTableView *parent)
     connect(this, &ProtocolPrinterHeaderView::sectionResized, this, &ProtocolPrinterHeaderView::adjustPositions);
     connect(parent->horizontalScrollBar(), &QScrollBar::valueChanged, this, &ProtocolPrinterHeaderView::adjustPositions);
     connect(parent->verticalScrollBar(), &QScrollBar::valueChanged, this, &ProtocolPrinterHeaderView::adjustPositions);
-
+    connect(this, &ProtocolPrinterHeaderView::updateNewModelLoad, parent->verticalScrollBar(), &QScrollBar::valueChanged);
     setContextMenuPolicy(Qt::CustomContextMenu);
 
     this->generateFilters(parent->model()->columnCount(), true);
@@ -140,26 +140,51 @@ void ProtocolPrinterHeaderView::send()
 
     QString str = line->text();
 
+    if(line->getNumber() == int(SpecColumnsNumb::SesId))
+    {
+        SQLQueryBuilder::checksFilter(model, str, line->getFilterMemory(), getFilterMemoryList(), line->getNumber(), SQLQueryBuilder::TypeColumn::Value);
+        seterPrimaryFilter(str);
+        tableView->verticalScrollBar()->setValue(0);
+        //emit updateNewModelLoad(tableView->verticalScrollBar()->value());
+        return;
+    }
+
     if((model->tableName() == tablesNamesList.at(0)) && (line->getNumber() == int(SpecColumnsNumb::SesRunDateTime)))//"Test Reports"
     {
         SQLQueryBuilder::checksFilter(model, str, line->getFilterMemory(), getFilterMemoryList(), line->getNumber(), SQLQueryBuilder::TypeColumn::DateTime);
-        if(model2 != nullptr)
-            setPrimaryFilter();
+        seterPrimaryFilter(str);
+        tableView->verticalScrollBar()->setValue(0);
+        //emit updateNewModelLoad(tableView->verticalScrollBar()->value());
         return;
     }
     if((model->tableName() == tablesNamesList.at(0)) && (line->getNumber() == int(SpecColumnsNumb::SesRunTotalTime)))//"Test Reports"
     {
         SQLQueryBuilder::checksFilter(model,  str, line->getFilterMemory(), getFilterMemoryList(), line->getNumber(), SQLQueryBuilder::TypeColumn::DateTime);
-        if(model2 != nullptr)
-            setPrimaryFilter();
+        seterPrimaryFilter(str);
+        tableView->verticalScrollBar()->setValue(0);
+        //emit updateNewModelLoad(tableView->verticalScrollBar()->value());
         return;
     }
 
     SQLQueryBuilder::checksFilter(model, str, line->getFilterMemory(), getFilterMemoryList(), line->getNumber(), SQLQueryBuilder::TypeColumn::String/*LineVect.size()*/);
-    if(model2 != nullptr)
-        setPrimaryFilter();
+    seterPrimaryFilter(str);
+    tableView->verticalScrollBar()->setValue(0);
+    //emit updateNewModelLoad(tableView->verticalScrollBar()->value());
 }
-
+void ProtocolPrinterHeaderView::seterPrimaryFilter(const QString& str)
+{
+    if(model2 != nullptr)
+    {
+        if(str == "")
+        {
+            setPrimaryFilter(true);
+        }
+        else
+        {
+            setPrimaryFilter();
+        }
+    }
+}
 
 /**
  * Изменяет структуру работы, теперь влияет на еще одну модель
@@ -181,17 +206,22 @@ void ProtocolPrinterHeaderView::setPrimaryFilter(bool reset, QList<int> list)
             header2->LineVect[header2->LineVect.size() - 1]->setFilterMemory("");
             header2->setFilter(header2->LineVect.size() - 1, "");
         }
+        //emit header2->LineVect[0]->editingFinished();
+        //return;
+    }
+    //QString filterMemories = SQLQueryBuilder::filtersRQData(getFilterMemoryList());
+    if(!list.size() && SQLQueryBuilder::filtersRQData(getFilterMemoryList()) == "")
+    {
         emit header2->LineVect[0]->editingFinished();
         return;
     }
-
     if(!list.size())
         list = SQLQueryBuilder::makePrimaryFilter(model);
 
-    QString req="(`Session ID` IN (0";
+    QString req = "(`Session ID` IN (0";
     foreach (int value, list)
-        req+= "," + QString::number(value);////??????!!!!!! РАБОТАЕТ НЕВЕРНО ????
-    req+="))";
+        req += "," + QString::number(value);
+    req += "))";
 
     primaryMemory = req;
     if(LineVect.size()>0)

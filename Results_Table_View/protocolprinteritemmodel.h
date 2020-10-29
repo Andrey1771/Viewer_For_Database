@@ -33,7 +33,7 @@ signals:
     // QSqlTableModel interface
 public:
     virtual void setFilter(const QString &filter) override;
-
+    void allRowLoad();
 };
 
 #endif // PROTOCOLPRINTERITEMMODEL_H

@@ -1,7 +1,9 @@
 #include "protocolprinterheaderviewextended.h"
 #include "newmodel.h"
+
 #include <QTableView>
 #include <QScrollBar>
+
 ProtocolPrinterHeaderViewExtended::ProtocolPrinterHeaderViewExtended(QTableView *parent) : ProtocolPrinterHeaderView (parent)
 {
     startSetSettings(parent);
