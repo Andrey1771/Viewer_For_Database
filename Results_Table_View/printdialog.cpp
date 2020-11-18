@@ -26,6 +26,10 @@ PrintDialog::PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel* m
     ui(new Ui::PrintDialog)
 {
     ui->setupUi(this);
+
+    QPixmap map("://new//prefix1//databaseExport.png");
+    this->setWindowIcon(QIcon(map));
+
     printDialogItemModel = new PrintDialogItemModel(namesTables, model, header);
 
     ui->tableView_Table->setModel(printDialogItemModel);
@@ -36,8 +40,8 @@ PrintDialog::PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel* m
     ui->tableView_Table->setItemDelegateForColumn(1, comboBox2);
 
     ui->progressBar_Progress->hide();
+    ui->label_TypePrintFileProgress->hide();
     this->db = &db;
-
 
     ui->comboBox_ExportChanger->addItems(exportTypes);
 
@@ -49,7 +53,6 @@ PrintDialog::PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel* m
 
     connect(ui->pushButton_Export, &QPushButton::clicked, this, &PrintDialog::onExport);
     connect(ui->pushButtonSetPath_Directory, &QPushButton::clicked, this, &PrintDialog::launchFilePathWizard);
-
 
     lastPath = pathFile;
     ui->lineEdit_Directory->setText(lastPath);
@@ -75,7 +78,6 @@ void PrintDialog::onAddRow()
 
 void PrintDialog::onRemoveRow()
 {
-
     QModelIndexList modelIndexList = ui->tableView_Table->getSelectedIndex();
     qDebug() << "QModelInd " << ui->tableView_Table->getSelectedIndex();
     if(!modelIndexList.isEmpty())
@@ -90,13 +92,14 @@ void PrintDialog::finishedWork()
 {
     ui->pushButton_Export->setEnabled(true);
     ui->progressBar_Progress->setVisible(false);
-    //progress->getPrintSup()->close();
+    ui->label_TypePrintFileProgress->setVisible(false);
 }
 
 void PrintDialog::startWork()
 {
     ui->pushButton_Export->setEnabled(false);
     ui->progressBar_Progress->setVisible(true);
+    ui->label_TypePrintFileProgress->setVisible(true);
 }
 
 void PrintDialog::dialogWarning(int countFiles)
@@ -133,12 +136,17 @@ void PrintDialog::messageFilePrinted(int type)
     case (TypePrint::XMLPDF):
     {
         QMessageBox::warning(nullptr, QObject::tr("Warning"),
-                             QObject::tr("ExcelPDF printing completed.\n"
+                             QObject::tr("Excel and PDF printing completed.\n"
                                          "Click Cancel to exit."), QMessageBox::Cancel);
         break;
     }
     }
 
+}
+
+void PrintDialog::setLabelTypePrintFilePDF()
+{
+    ui->label_TypePrintFileProgress->setText("PDF is printed");
 }
 
 void PrintDialog::onExport()
@@ -161,7 +169,9 @@ void PrintDialog::onExport()
     connect(progress, &PrintProgress::progressChanged, this, &PrintDialog::progressBarSetVal);
     connect(progress, &PrintProgress::countedFiles, this, &PrintDialog::dialogWarning);
     connect(progress, &PrintProgress::filePrinted, this, &PrintDialog::messageFilePrinted);
+    connect(progress, &PrintProgress::typePrintFileChanged, this, &PrintDialog::setLabelTypePrintFilePDF);
     connect(&progress->watcher, &QFutureWatcher<void>::finished, this, &PrintDialog::finishedWork);
+
 
     startWork();
     switch(ui->comboBox_ExportChanger->currentIndex())
@@ -170,18 +180,21 @@ void PrintDialog::onExport()
     {
         qDebug() << "FiltersMemory: " << printDialogItemModel->getFiltersMemory();
         progress->setTypePrint(TypePrint::XMLPDF);
+        ui->label_TypePrintFileProgress->setText("Excel is printed");
         PrintController::onExportDBAction(*db, "PDF + XML", dir.path(), progress, printDialogItemModel->getFiltersMemory());
         break;
     }
     case(1)://PDF
     {
         progress->setTypePrint(TypePrint::PDF);
+        ui->label_TypePrintFileProgress->setText("PDF is printed");
         PrintController::onExportDBAction(*db, "PDF", dir.path(), progress, printDialogItemModel->getFiltersMemory());
         break;
     }
     case(2)://XML
     {
         progress->setTypePrint(TypePrint::XML);
+        ui->label_TypePrintFileProgress->setText("Excel is printed");
         PrintController::onExportDBAction(*db, "XML", dir.path(), progress, printDialogItemModel->getFiltersMemory());
         break;
     }//11/1/2000 9:11:04 - 05/2/2033 12:11:26 9:11:04

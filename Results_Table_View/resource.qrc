@@ -1,5 +1,7 @@
 <RCC>
     <qresource prefix="/new/prefix1">
         <file>clearButton.png</file>
+        <file>database.png</file>
+        <file>databaseExport.png</file>
     </qresource>
 </RCC>

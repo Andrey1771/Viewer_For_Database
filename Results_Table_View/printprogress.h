@@ -47,6 +47,7 @@ signals:
     void progressChanged(float progress);
     void countedFiles(int countFiles);
     void filePrinted(int type);
+    void typePrintFileChanged();
 
 };
 

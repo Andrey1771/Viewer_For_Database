@@ -6,8 +6,7 @@
 #include <QFutureWatcher>
 #include <QtConcurrent/QtConcurrentRun>
 #include <QDateTime>
-#include <QSqlError>
-#include <QPrinter>
+
 #include <QTextDocument>
 #include <QPainter>
 
@@ -20,8 +19,6 @@ PrintController::PrintController(QSqlDatabase& db, const QString& typeFile,const
     this->filtersMemory = filtersMemory;
     stop = false;
 }
-
-
 
 QString PrintController::CheckRepairfileName(const QString& projectName, const QString& lruSN, const QString& date,
                                              const QString& fileExtension, const QString &directory, QList<QString>& namesFilesExp)
@@ -43,12 +40,11 @@ QString PrintController::CheckRepairfileName(const QString& projectName, const Q
     namesFilesExp.push_back(filePath);
 
     filePath += QString(".%1").arg(fileExtension);
-    qDebug() << filePath;
 
     return filePath;
 }
 
-void PrintController::PrintHTMLToFile(const QString& html, const QString& fileName)
+void PrintController::PrintXMLToFile(const QString& xml, const QString& fileName)
 {
     QFile f(fileName);
     if (!f.open(QIODevice::WriteOnly))
@@ -57,29 +53,27 @@ void PrintController::PrintHTMLToFile(const QString& html, const QString& fileNa
     }
     else
     {
-
-        //f.write(html.toLocal8Bit());
-        f.write(html.toUtf8().constData());
+        f.write(xml.toUtf8().constData());
         f.close();
     }
 }
 
-void PrintController::PrintHTMLToFiles(QList<QString> htmlList, QList<QString> htmlFileNameList)
+void PrintController::PrintXMLToFiles(QList<QString> xmlList, QList<QString> htmlFileNameList)
 {
-    for(int i = 0; i < htmlList.size(); ++i)//
+    for(int i = 0; i < xmlList.size(); ++i)//
     {
         if(stop)
         {
             return;
         }
         progress->setProgressCount(progress->getProgressCount() + progress->getPartProgress());
-        PrintHTMLToFile(htmlList.at(i), htmlFileNameList.at(i));
+        PrintXMLToFile(xmlList.at(i), htmlFileNameList.at(i));
     }
 }
 
-void PrintController::PrintHTMLToFiles(QList<QString> htmlList, QList<PrintController::FileNameElements> htmlFileNameList, const QString& direction)
+void PrintController::PrintXMLToFiles(QList<QString> xmlList, QList<PrintController::FileNameElements> htmlFileNameList, const QString& direction)
 {
-    for(int i = 0; i < htmlList.size(); ++i)//
+    for(int i = 0; i < xmlList.size(); ++i)//
     {
         if(stop)
         {
@@ -87,7 +81,7 @@ void PrintController::PrintHTMLToFiles(QList<QString> htmlList, QList<PrintContr
         }
         QString path = CheckRepairfileName(htmlFileNameList.at(i).projectName, htmlFileNameList.at(i).lruSN, htmlFileNameList.at(i).date, "xls", direction, namesFilesExp);
         progress->setProgressCount(progress->getProgressCount() + progress->getPartProgress());
-        PrintHTMLToFile(htmlList.at(i), path);
+        PrintXMLToFile(xmlList.at(i), path);
     }
 }
 
@@ -119,6 +113,7 @@ void PrintController::WorkAtHTMLFile(const QString& fileName)
     db = QSqlDatabase :: addDatabase("QSQLITE", "Second2"); // В зависимости от типа базы данных нужно будет дополнить и изменить
     db.setDatabaseName(fileName);
 
+
     if(!db.open())
         return ;
 
@@ -148,7 +143,6 @@ void PrintController::WorkAtHTMLFile(const QString& fileName)
 
     FileNameElements elems;
 
-    QList<QString> htmlList;
     QList<QString> fileNameList;
     QList<QHash<QString, ScenarioData>>scenariosHashList;
 
@@ -156,14 +150,16 @@ void PrintController::WorkAtHTMLFile(const QString& fileName)
 
     while (query.next())
     {
+        QList<TableHTML>tablesHTML;
+        QList<QString> tablesInFileList;
         countFiles++;
 
-        QString html = printerPDF.HTMLHead;
-        //QString html = HTMLHead + HTMLEndTab;
-        html += "<p>" + printerPDF.HTMLEndTab;
+        QString html = PDFStyles::HTMLHead;
+        html += "<p>" + PDFStyles::HTMLEndTab;
         html += QString("<caption align=\"center\">%1</caption>")
                 .arg(TableCaption(NASKTableType::AcceptanceTestReports));
-        //<div style=\"page-break-before:always\"></div>
+        tablesInFileList.push_back(TableCaption(NASKTableType::AcceptanceTestReports));
+
         qlonglong sessionID = 0;
         auto index = 0;
         while (!query.value(index).isNull())
@@ -206,18 +202,13 @@ void PrintController::WorkAtHTMLFile(const QString& fileName)
             index++;
         }
         html += "</table><br><br><br></div></p>";
-
-
-
-        ///
-        /// Вставить footer и проверку на размер
-        ///
+        tablesHTML.push_back(TableHTML(html + "</div></p></body></html>"));
         int count = 1;
-        QString temp = printerPDF.PrintTable_HTML(NASKTableType::SuspectListOfSRUs, sessionID, db, filtersMemory);
+        QString temp = printerPDF.PrintTable_HTML(NASKTableType::SuspectListOfSRUs, sessionID, db, filtersMemory, tablesInFileList, tablesHTML);
         if(temp != "")
             count++;
         html += temp;
-        temp = printerPDF.PrintTable_HTML(NASKTableType::VisualInspection, sessionID, db, filtersMemory);
+        temp = printerPDF.PrintTable_HTML(NASKTableType::VisualInspection, sessionID, db, filtersMemory, tablesInFileList, tablesHTML);
         if(temp != "")
             count++;
         html += temp;
@@ -228,27 +219,27 @@ void PrintController::WorkAtHTMLFile(const QString& fileName)
         }
         count++;
 
-        html += printerPDF.PrintScenarioData_HTML(s_scenariosData);
-        html += printerPDF.PrintIndividualTestResults_HTML(s_scenariosData);
+        html += printerPDF.PrintScenarioData_HTML(s_scenariosData, tablesInFileList, tablesHTML);
+        html += printerPDF.PrintIndividualTestResults_HTML(s_scenariosData, tablesInFileList, tablesHTML);
 
         html += "</div></p></body></html>";//<footer>%1</footer>QString().arg(elems.projectName)
 
-        htmlList.push_back(html);
         fileNameList.push_back(CheckRepairfileName(elems.projectName, elems.lruSN, elems.date, "pdf", directory, namesFilesExp));
 
         scenariosHashList.push_back(s_scenariosData);
         s_scenariosData.clear();
-
+        tablesInFile.insert(countFiles - 1, tablesInFileList);
+        tablesHTMLInFiles.push_back(tablesHTML);
     }
     emit progress->countedFiles(countFiles);
     progress->setProgressCount(0);
 
-    if(htmlList.size() != 0)
-        progress->setPartProgress(float(100) / htmlList.size());
+    if(tablesHTMLInFiles.size() != 0)
+        progress->setPartProgress(float(100) / tablesHTMLInFiles.size());
     else
         progress->setProgressCount(100);
 
-    PrintHTMLToPdfFiles(htmlList, fileNameList, scenariosHashList);
+    PrintHTMLToPdfFiles(fileNameList, scenariosHashList, tablesInFile);
     progress->setProgressCount(100);
     db.close();
     if(progress->getTypePrint() == TypePrint::PDF)
@@ -308,13 +299,12 @@ void PrintController::WorkAtXMLFile(const QString& fileName)
     QList<PrintController::FileNameElements> fileNameElementsList;
     QSqlQuery query(db);
     const auto atrColumnsNames = TableColumnNames(NASKTableType::AcceptanceTestReports);
-    ///////////////////////////
+
     QList<QString*> filter = filtersMemory.value(TableCaption(NASKTableType::AcceptanceTestReports));
     bool status;
-    ///////////////////////////
+
     if(filter.size())
     {
-        //qDebug() << QString("SELECT * FROM '%1'").arg(TableCaption(NASKTableType::AcceptanceTestReports)) + " WHERE " + getFiltersMemories(filter) + ";";
         QString filterMemory = getFiltersMemories(filter);
         if(filterMemory == "()")
             status = query.exec(QString("SELECT * FROM '%1';").arg(TableCaption(NASKTableType::AcceptanceTestReports)));
@@ -424,7 +414,7 @@ void PrintController::WorkAtXMLFile(const QString& fileName)
     else
         progress->setProgressCount(100);
 
-    PrintHTMLToFiles(xmlMainList, fileNameElementsList, directory);
+    PrintXMLToFiles(xmlMainList, fileNameElementsList, directory);
 
     progress->setProgressCount(100);
     if(progress->getTypePrint() == TypePrint::XML)
@@ -434,136 +424,194 @@ void PrintController::WorkAtXMLFile(const QString& fileName)
 void PrintController::WorkAtXMLAndHTMLFile(const QString& fileName)
 {
     WorkAtXMLFile(fileName);
+    emit progress->typePrintFileChanged();
     WorkAtHTMLFile(fileName);
     emit progress->filePrinted(int(TypePrint::XMLPDF));
 }
 
-
-static const int textMargins = 12; // in millimeters
-static const int borderMargins = 10; // in millimeters
-
-double mmToPixels(QPrinter& printer, int mm)
+double PrintController::mmToPixels(QPrinter& printer, int mm)
 {
     return mm * 0.039370147 * printer.resolution();
 }
-static int temp = 0;
-void paintPage(QPrinter& printer, int pageNumber, int pageCount,
-                      QPainter* painter, QTextDocument* doc,
-                      const QRectF& textRect, qreal footerHeight)
+
+void PrintController::paintPage(int pageNumber, QPainter* painter, QTextDocument* doc,
+                                const QRectF& textRect, qreal footerHeight, const QString& tableName,
+                                int numberCurrentPageDoc, int firstVal, const QString& fileNamePath)
 {
-    //qDebug() << "Printing page" << pageNumber;
-    //const QSizeF pageSize = printer.paperRect().size();
-    //qDebug() << "pageSize=" << pageSize;
-
-    //const double bm = mmToPixels(printer, borderMargins);
-    //const QRectF borderRect(bm, bm, pageSize.width() - 2 * bm, pageSize.height() - 2 * bm);
-    //painter->drawRect(borderRect);
-
     painter->save();
-    // textPageRect is the rectangle in the coordinate system of the QTextDocument, in pixels,
-    // and starting at (0,0) for the first page. Second page is at y=doc->pageSize().height().
-    const QRectF textPageRect(0, pageNumber * doc->pageSize().height(), doc->pageSize().width(), doc->pageSize().height());
-    // Clip the drawing so that the text of the other pages doesn't appear in the margins
-    painter->setClipRect(textRect);
-    // Translate so that 0,0 is now the page corner
+    const QRectF textPageRect(0, (firstVal + 1 - numberCurrentPageDoc) * doc->pageSize().height(), doc->pageSize().width(), doc->pageSize().height());
     painter->translate(0, -textPageRect.top());
-    // Translate so that 0,0 is the text rect corner
     painter->translate(textRect.left(), textRect.top());
-    doc->drawContents(painter);
+    doc->drawContents(painter, textPageRect);
     painter->restore();
 
-    // Footer: page number or "end"
     QRectF footerRect = textRect;
     footerRect.setTop(textRect.bottom());
     footerRect.setHeight(footerHeight);
 
-    painter->drawText(footerRect, Qt::AlignVCenter | Qt::AlignRight, QObject::tr("rewrewrewrerwer %1").arg(pageNumber+1));
+    painter->drawText(footerRect, Qt::AlignVCenter | Qt::AlignCenter, QObject::tr("%1").arg(tableName));
+    footerRect.setTop(textRect.bottom() + footerHeight);
+    footerRect.setHeight(footerHeight);
+    painter->drawText(footerRect, Qt::AlignVCenter | Qt::AlignCenter, QObject::tr("%1").arg(fileNamePath));
+    footerRect.setTop(textRect.bottom() + 2 * footerHeight);
+    footerRect.setHeight(footerHeight);
+    painter->drawText(footerRect, Qt::AlignVCenter | Qt::AlignRight, QObject::tr("%1").arg(pageNumber + 1));
 }
 
-void printDocument(QPrinter& printer, QTextDocument* doc)
+PrintController::TestResultsDataInFile PrintController::findTestResultsStrNum(const QList<QString>& tablesInFile, const QList<TableHTML>& tablesHTML)
 {
-    QPainter painter( &printer );
-    QSizeF pageSize = printer.pageRect().size(); // page size in pixels
-    // Calculate the rectangle where to lay out the text
-    const double tm = mmToPixels(printer, textMargins);
-    const qreal footerHeight = painter.fontMetrics().height();
-    const QRectF textRect(tm, tm, pageSize.width() - 2 * tm, pageSize.height() - 2 * tm - footerHeight);
-    //qDebug() << "textRect=" << textRect;
-    doc->setPageSize(textRect.size());
+    int numberTestResultsTable = -1;
+    QString testResultsStr;
+    for(int i = 0; i < tablesInFile.size(); ++i)
+    {
+        if(tablesInFile.at(i) == TableCaption(NASKTableType::SummaryTestResults))
+        {
+            numberTestResultsTable = i;
+            testResultsStr = tablesHTML[i].getTable();
+            break;
+        }
+    }
+    return TestResultsDataInFile(testResultsStr, numberTestResultsTable);
+}
 
-    const int pageCount = doc->pageCount();
+PrintController::DocumentPrintParameters PrintController::countingSettingPages(QTextDocument& doc2, const QList<QString>& tablesInFile,
+                                                                               const TestResultsDataInFile& testDataInFile, const QList<TableHTML>& tablesHTML)
+{
+    QList<QString> docList;
+    QList<int> docCountPagesList;
+    QList<QString> tableNameList;
+    int sizeDocument = 0;
+
+    QString htmlTestResults = testDataInFile.html;
+    for(int i = 0; i < tablesInFile.size(); ++i)
+    {
+        doc2.setHtml(tablesHTML[i].getTable());
+
+        int size = doc2.pageCount() - 1;//-1, тк у таблиц в head стоит тег breakAllways
+        sizeDocument += size;
+
+        for(int k = doc2.pageCount() - 1; k > 0; --k)
+            tableNameList.push_back(tablesInFile.at(i));
+        docList.push_back(tablesHTML[i].getTable());
+
+        docCountPagesList.push_back(doc2.pageCount() - 1);
+
+        //TODO вызов сделать единичным
+        htmlTestResults = settingTestPageForDoc(sizeDocument, i, doc2, tablesInFile, htmlTestResults);
+    }
+    return DocumentPrintParameters(docList, docCountPagesList, tableNameList, sizeDocument, htmlTestResults);
+}
+
+QString PrintController::settingTestPageForDoc(int sizeDocument, int numTable, QTextDocument& doc2,
+                                        const QList<QString>& tablesInFile, const QString& htmlTestResults)
+{
+    QString newTestData = htmlTestResults;
+    QRegExp regExp("\\{%[0-9]+\\}");
+    if(!TablesCaption().count(tablesInFile.at(numTable)))
+    {
+        regExp.indexIn(htmlTestResults);
+        int pos = regExp.pos();
+        if(pos > -1)
+        {
+            QString str = regExp.cap();
+            if(sizeDocument + 2 - (doc2.pageCount()) != sizeDocument)
+                newTestData.replace(pos, str.length(), QString::number(sizeDocument + 2 - (doc2.pageCount())) + "-" + QString::number(sizeDocument));
+            else
+                newTestData.replace(pos, str.length(), QString::number(sizeDocument));
+        }
+        else
+            qDebug() << "Error regExp.indexIn(htmlNew); pos > -1";
+    }
+    return newTestData;
+}
+
+void PrintController::printDocument(QPrinter& printer, const QList<QString>& tablesInFile,
+                                    const QList<TableHTML>& tablesHTML, const QString& fileNamePath)
+{
+    QPainter painter(&printer);
+    QSizeF pageSize = printer.pageRect().size(); // page size in pixels
+    const qreal footerHeight = painter.fontMetrics().height();
+    const double tm = mmToPixels(printer, textMargins);
+    const QRectF textRect(tm, tm, pageSize.width() - 2.5 * tm, pageSize.height() - 3 * tm - footerHeight * 3);
+
+    if(tablesHTML.size() > tablesInFile.size())
+    {
+        qDebug() << "ОШИБКА, tablesHTML.size() > tablesInFile.size(): " << tablesHTML.size() << " " << tablesInFile.size();
+        throw(std::length_error("ОШИБКА, tablesHTML.size() > tablesInFile.size()"));
+    }
+
+    TestResultsDataInFile testDataInFile = findTestResultsStrNum(tablesInFile, tablesHTML);
+
+    QTextDocument doc2;
+    doc2.setPageSize(textRect.size());
+
+    PrintController::DocumentPrintParameters documentPrintPar = countingSettingPages(doc2, tablesInFile, testDataInFile, tablesHTML);
+
+    if(testDataInFile.numberTablesInFile != -1)
+        documentPrintPar.docList[testDataInFile.numberTablesInFile] = documentPrintPar.newTestHTML;
 
     bool firstPage = true;
-    for (int pageIndex = 0; pageIndex < pageCount; ++pageIndex) {
+    int k = 0;
+    int firstVal = 0;
+    QTextDocument doc3;
+    doc3.setPageSize(textRect.size());
+    if(documentPrintPar.docCountPagesList.size() > 0)
+    {
+        firstVal = documentPrintPar.docCountPagesList.at(0);
+        doc3.setHtml(tablesHTML[0].getTable());
+    }
 
+    for (int pageIndex = 0; pageIndex < documentPrintPar.sizeDocument; ++pageIndex)
+    {
         if (!firstPage)
             printer.newPage();
 
-            paintPage( printer, pageIndex, pageCount, &painter, doc, textRect, footerHeight );
-        firstPage = false;
-    }
+        if(documentPrintPar.docCountPagesList.at(k) == 0)
+        {
+            ++k;
+            firstVal = documentPrintPar.docCountPagesList.at(k);
+            doc3.setHtml(documentPrintPar.docList.at(k));
+        }
 
+        paintPage(pageIndex, &painter, &doc3, textRect, footerHeight, documentPrintPar.tableNameList.at(pageIndex), documentPrintPar.docCountPagesList.at(k), firstVal, fileNamePath);
+
+        firstPage = false;
+        --documentPrintPar.docCountPagesList[k];
+    }
 }
 
-
-
-void PrintController::PrintHTMLToPdf(const QString& html, const QString& fileName)
+void PrintController::PrintHTMLToPdf(const QString& fileName, const QList<QString>& tablesInFile, const QList<TableHTML>& tablesHTML)
 {
-    {
     QPrinter printer(QPrinter::PrinterResolution);
     printer.setOutputFormat(QPrinter::PdfFormat);
     printer.setPageSize(QPrinter::A4);
     printer.setOutputFileName(fileName);
     printer.setPageMargins(QMargins(0, 0, 0, 50));
 
-    //QPainter painter;
-    //painter.begin(&printer);
-
-    QTextDocument doc;
-    doc.setHtml(html);
-    //cur.insertHtml(html);
-
-
-//    QString pdf = doc.toHtml();
-//    QFile f("C:\\Users\\Hohlov\\Desktop\\html97.txt");
-//    f.open(QIODevice::WriteOnly);
-//    f.write(pdf.toUtf8().constData());
-//    f.close();
-
-    //doc.print(&printer);
-    printDocument(printer, &doc);
-    //doc.print(&printer);
-
+    QRegExp regExp("(\\/[A-Za-z0-9 ,\\.&\\$#№@':;\\{\\}\\[\\]\\(\\)\\*\\^\\%\\_\\-\\=]+\\.pdf)");
+    regExp.indexIn(fileName);
+    int pos = regExp.pos();
+    QString fileNamePath = "";
+    if(pos > -1)
+    {
+        QString temp = regExp.cap();
+        temp = temp.remove("/");
+        temp = temp.remove(".pdf");
+        fileNamePath = temp;
     }
-//    {
-//        QPrinter printer(QPrinter::PrinterResolution);
-//        printer.setOutputFormat(QPrinter::PdfFormat);
-//        printer.setPageSize(QPrinter::A4);
-//        printer.setOutputFileName(fileName);
-//        printer.setPageMargins(QMargins(0, 0, 0, 0));
+    else
+    {
+        throw(std::logic_error("Ошибка, имя файла не опознано, if(pos > -1)"));
+    }
 
-//        QPainter painter;
 
-//        painter.begin(&printer);
-
-//        painter.setBrush(Qt::transparent);
-//        painter.drawPixmap(0, 0, 100, 100, QPixmap("img.png"));
-//        painter.drawPixmap(200, 0, 100, 100, QPixmap("img.png"));
-//        painter.drawPixmap(0, 100, 100, 100, QPixmap("img.png"));
-//        painter.drawPixmap(200, 100, 100, 100, QPixmap("img.png"));
-//        painter.end();
-//        //    QFile f("C:\\Users\\Hohlov\\Desktop\\html22.txt");
-//        //    f.open(QIODevice::WriteOnly);
-//        //    f.write(html.toUtf8().constData());
-//        //    f.close();
-//    }
+    printDocument(printer, tablesInFile, tablesHTML, fileNamePath);
 }
 
 
-
-void PrintController::PrintHTMLToPdfFiles(QList<QString> htmlList, QList<QString> htmlFileNameList, QList<QHash<QString, ScenarioData>> scenariosHashList)
+void PrintController::PrintHTMLToPdfFiles(QList<QString> htmlFileNameList, QList<QHash<QString, ScenarioData>> scenariosHashList, const QMap<int, QList<QString>>& tablesInFile)
 {
-    for(int i = 0; i < htmlList.size(); ++i)//
+    for(int i = 0; i < tablesHTMLInFiles.size(); ++i)//
     {
         if(stop)
         {
@@ -571,7 +619,7 @@ void PrintController::PrintHTMLToPdfFiles(QList<QString> htmlList, QList<QString
         }
         s_scenariosData = scenariosHashList.at(i);
         progress->setProgressCount(progress->getProgressCount() + progress->getPartProgress());
-        PrintHTMLToPdf(htmlList.at(i), htmlFileNameList.at(i));
+        PrintHTMLToPdf(htmlFileNameList.at(i), tablesInFile[i], tablesHTMLInFiles.at(i));
     }
 }
 
@@ -612,12 +660,3 @@ void PrintController::close()
 {
     //this->~PrintController();
 }
-
-
-
-
-
-
-
-
-

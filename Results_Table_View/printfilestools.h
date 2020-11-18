@@ -5,6 +5,7 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlError>
+#include "tablehtml.h"
 
 struct ScenarioData
 {
@@ -55,6 +56,7 @@ enum class EnumColumnSpecStyle
 QStringList TableColumnNames(NASKTableType type);
 
 QString TableCaption(NASKTableType type);
+QList<QString> TablesCaption();
 
 enum class SeparateType
 {

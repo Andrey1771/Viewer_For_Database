@@ -12,13 +12,14 @@ PDFPrintSupport::PDFPrintSupport()
 
 QString PDFPrintSupport::HTMLTableHead(const QString& tableName)
 {
-    QString html = ("\n<p>" + HTMLEndTab);
+    QString html = ("\n<p>" + PDFStyles::HTMLEndTab);
     html += QString("\n<caption align=\"center\">%1</caption>").arg(ShieldingToXML(tableName));
     return html;
 }
 
-QString PDFPrintSupport::PrintIndividualTestResults_HTML(QHash<QString, ScenarioData>& s_scenariosData)
+QString PDFPrintSupport::PrintIndividualTestResults_HTML(QHash<QString, ScenarioData>& s_scenariosData, QList<QString> &tablesInFile, QList<TableHTML>& tablesHTML)
 {
+
     QString html;
 
     QList<QString> names = s_scenariosData.keys();
@@ -26,18 +27,20 @@ QString PDFPrintSupport::PrintIndividualTestResults_HTML(QHash<QString, Scenario
 
     for (const auto& scenarioName : names)
     {
+        QString bHTMLItem = "";
         if(s_scenariosData[scenarioName].testData.isEmpty())
         {
             continue;
         }
-        html += HTMLTableHead(scenarioName);
+        tablesInFile.push_back(scenarioName);
+        bHTMLItem += HTMLTableHead(scenarioName);
 
-        html += "\n\t<tr>";
+        bHTMLItem += "\n\t<tr>";
         for (const auto& name : TableColumnNames(NASKTableType::IndividualScenarioResults))
         {
-            html += QString("\n\t\t<th align=\"center\">%1</th>").arg(name);
+            bHTMLItem += QString("\n\t\t<th align=\"center\">%1</th>").arg(name);
         }
-        html += "\n\t</tr>";
+        bHTMLItem += "\n\t</tr>";
 
         for (const auto& d : s_scenariosData[scenarioName].testData)
         {
@@ -65,24 +68,29 @@ QString PDFPrintSupport::PrintIndividualTestResults_HTML(QHash<QString, Scenario
                 htmlItem += QString("\n\t\t<td align=\"center\" bgcolor=\"red\">%1</td>").arg("Failed");
             }
             htmlItem += "\n\t</tr>";
-            html += htmlItem;
+            bHTMLItem += htmlItem;
             //HTMLAdderCheck(html, htmlItem, SeparateType::Head, QPageSize::size(QPageSize::A4, QPageSize::Unit::Point), scenarioName);
         }
 
-        html += HTMLTableFoot;
-
+        bHTMLItem += PDFStyles::HTMLTableFoot;
+        TableHTML tableHTML;
+        tableHTML.setHTML(bHTMLItem);
+        tablesHTML.push_back(tableHTML);
+        html += bHTMLItem;
     }
 
     return html;
 }
 
 
-QString PDFPrintSupport::PrintScenarioData_HTML(QHash<QString, ScenarioData>& s_scenariosData)
+QString PDFPrintSupport::PrintScenarioData_HTML(QHash<QString, ScenarioData>& s_scenariosData, QList<QString> &tablesInFile, QList<TableHTML>& tablesHTML)
 {
+
     QString html;
     if(s_scenariosData.keys().isEmpty())
         return html;
 
+    tablesInFile.push_back(TableCaption(NASKTableType::SummaryTestResults));
     html += HTMLTableHead(TableCaption(NASKTableType::SummaryTestResults));
 
     html += "\n\t<tr>";
@@ -95,12 +103,14 @@ QString PDFPrintSupport::PrintScenarioData_HTML(QHash<QString, ScenarioData>& s_
     QList<QString> names = s_scenariosData.keys();
     sorterNames(names);
 
+    int i = 1;
     for (const auto& scenarioName : names)
     {
         QString htmlItem = "";
         htmlItem += "\n\t<tr>";
 
-        htmlItem += QString("\n\t\t<td align=\"center\" width=\"10%\"></td>");          /// TODO: append page number!!!!!
+        htmlItem += QString("\n\t\t<td align=\"center\" width=\"10%\">{%" + QString::number(i) + "}</td>");
+        ++i;
         htmlItem += QString("\n\t\t<td align=\"left\">%1</td>").arg(scenarioName);
 
         if (s_scenariosData[scenarioName].scenarioPassState)
@@ -114,16 +124,18 @@ QString PDFPrintSupport::PrintScenarioData_HTML(QHash<QString, ScenarioData>& s_
 
         htmlItem += "\n\t</tr>";
         html += htmlItem;
-        //HTMLAdderCheck(html, htmlItem, SeparateType::Head, QPageSize::size(QPageSize::A4, QPageSize::Unit::Point), TableCaption(NASKTableType::SummaryTestResults));
     }
-    html += HTMLTableFoot;
-
+    html += PDFStyles::HTMLTableFoot;
+    TableHTML tableHTML;
+    tableHTML.setHTML(html);
+    tablesHTML.push_back(tableHTML);
     return html;
 }
 
 
-QString PDFPrintSupport::PrintTable_HTML(NASKTableType type, qlonglong sessionID, QSqlDatabase& db, QMap<QString, QList<QString*>>& filtersMemory)
+QString PDFPrintSupport::PrintTable_HTML(NASKTableType type, qlonglong sessionID, QSqlDatabase& db, QMap<QString, QList<QString*>>& filtersMemory, QList<QString> &tablesInFile, QList<TableHTML>& tablesHTML)
 {
+
     QString html;
     QSqlQuery query(db);
 
@@ -154,12 +166,13 @@ QString PDFPrintSupport::PrintTable_HTML(NASKTableType type, qlonglong sessionID
         qDebug() << QString("DB Query '%1' Error: ").arg("queryStr") << query.lastError().text();
         return html;
     }
-    ////////////////////////
+
     if(!query.next())//Query.size() не поддерживается QSQLite, поэтому делаю такое действие для проверки на пустоту таблицы
         return html;
     else
-        qDebug() << "query результат предыдущего: " << query.previous();
-    ////////////////////////
+        query.previous();
+
+    tablesInFile.push_back(TableCaption(type));
     html += HTMLTableHead(TableCaption(type));
 
     html += "\n\t<tr>";
@@ -178,7 +191,6 @@ QString PDFPrintSupport::PrintTable_HTML(NASKTableType type, qlonglong sessionID
         }
     }
     html += "\n\t</tr>";
-
     while (query.next())
     {
         QString htmlItem;
@@ -230,12 +242,12 @@ QString PDFPrintSupport::PrintTable_HTML(NASKTableType type, qlonglong sessionID
         }
         htmlItem += "\n\t</tr>";
 
-        //qDebug() << "printer.pageSize() " << printer.pageLayout().pageSize();
         html+=htmlItem;
-        //HTMLAdderCheck(html, htmlItem, SeparateType::Head, QPageSize::size(QPageSize::A4, QPageSize::Unit::Millimeter), TableCaption(type));
     }
-    html += HTMLTableFoot;
+    html += PDFStyles::HTMLTableFoot;
 
-
+    TableHTML tableHTML;
+    tableHTML.setHTML(html);
+    tablesHTML.push_back(tableHTML);
     return html;
 }

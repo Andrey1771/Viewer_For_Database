@@ -161,7 +161,7 @@
       </layout>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horLay_Progress">
+      <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,0">
        <property name="spacing">
         <number>2</number>
        </property>
@@ -181,6 +181,16 @@
         <widget class="QProgressBar" name="progressBar_Progress">
          <property name="value">
           <number>0</number>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_TypePrintFileProgress">
+         <property name="text">
+          <string>Type of file to print</string>
          </property>
         </widget>
        </item>

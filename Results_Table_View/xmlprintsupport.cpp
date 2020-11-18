@@ -188,12 +188,12 @@ QString XMLPrintSupport::PrintTable_XML(NASKTableType type, qlonglong sessionID,
         qDebug() << "DB Query Error: " << query.lastError().text();
         return xml;
     }
-    ////////////////////////
+
     if(!query.next())//Query.size() не поддерживается QSQLite, поэтому делаю такое действие для проверки на пустоту таблицы
         return xml;
     else
-        qDebug() << "query результат предыдущего: " << query.previous();
-    ////////////////////////
+        query.previous();
+
     xml += XMLTableHead(TableCaption(type));
 
 
@@ -315,12 +315,11 @@ QString XMLPrintSupport::PrintScenarioData_XML(int count, QHash<QString, Scenari
 
     for (const auto& scenarioName : names)
     {
-        ///
         if(scenarioName.toLower() == QString("Session ID").toLower())
         {
             continue;
         }
-        ///
+
         xml += XMLRowHead;
         {
             int numberCell = 1 + tableOffset;
@@ -346,7 +345,7 @@ QString XMLPrintSupport::PrintScenarioData_XML(int count, QHash<QString, Scenari
     }
     if (faile)
     {
-        xml += XMLTableFoot.arg("<TabColorIndex>10</TabColorIndex>");    //"<TabColorIndex>9</TabColorIndex>"//9
+        xml += XMLTableFoot.arg("<TabColorIndex>10</TabColorIndex>");
     }
     else
     {
@@ -417,7 +416,7 @@ QString XMLPrintSupport::PrintIndividualTestResults_XML(QHash<QString, ScenarioD
         }
         if (faile)
         {
-            xml += XMLTableFoot.arg("<TabColorIndex>10</TabColorIndex>");    //"<TabColorIndex>9</TabColorIndex>"//9
+            xml += XMLTableFoot.arg("<TabColorIndex>10</TabColorIndex>");
         }
         else
         {

@@ -1,6 +1,8 @@
 
 #include "printfilestools.h"
 
+
+
 QStringList TableColumnNames(NASKTableType type)
 {
     switch (type)
@@ -101,6 +103,16 @@ QString TableCaption(NASKTableType type)
         break;
     }
     return {};
+}
+
+QList<QString> TablesCaption()
+{
+    QList<QString> list;
+    for(int i = 0; i < 6; ++i)
+    {
+        list.push_back(TableCaption(NASKTableType(i)));
+    }
+    return list;
 }
 
 void sorterNames(QList<QString>& names)

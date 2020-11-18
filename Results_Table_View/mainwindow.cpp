@@ -79,6 +79,12 @@ MainWindow::~MainWindow()
 
 void MainWindow::launchSetSettings()
 {
+    //icon
+    QPixmap map("://new//prefix1//database.png");
+    this->setWindowIcon(QIcon(map));
+    this->setIconSize(map.size());
+    //icon
+
     //variables
     numberTable = 0;
 
@@ -158,11 +164,10 @@ void MainWindow::launchSetSettings()
     connect(filter, &QHeaderView::sectionClicked, this, &MainWindow::colomnNewModelFilter);
     connect(filter_Sup, &QHeaderView::sectionClicked, this, &MainWindow::colomnModelFilter);
     
-    ///TODO FIX BUG
-    //connect(newModel->model, &ProtocolPrinterItemModel::TableChanged, );
-    ///TODO FIX BUG
-    /// 
+
     exportDataForSaver.pathFile = loadPathExportDialog();
+
+
 }
 
 void MainWindow::ProxyNewModelLoad()
