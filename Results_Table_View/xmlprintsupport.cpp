@@ -12,7 +12,6 @@
 #include <QtConcurrent/QtConcurrentRun>
 #include <QPainter>
 
-
 #include <QTextCursor>
 XMLPrintSupport::XMLPrintSupport()
 {
@@ -22,9 +21,6 @@ XMLPrintSupport::XMLPrintSupport()
 XMLPrintSupport::~XMLPrintSupport()
 {
 }
-
-
-
 
 void XMLPrintSupport::widthColumnsSet(QString& html, QList<float> sizeList)
 {

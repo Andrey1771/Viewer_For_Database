@@ -66,7 +66,7 @@ void PrintController::PrintXMLToFiles(QList<QString> xmlList, QList<QString> htm
         {
             return;
         }
-        progress->setProgressCount(progress->getProgressCount() + progress->getPartProgress());
+        progress->nextPartProgress();
         PrintXMLToFile(xmlList.at(i), htmlFileNameList.at(i));
     }
 }
@@ -80,7 +80,7 @@ void PrintController::PrintXMLToFiles(QList<QString> xmlList, QList<PrintControl
             return;
         }
         QString path = CheckRepairfileName(htmlFileNameList.at(i).projectName, htmlFileNameList.at(i).lruSN, htmlFileNameList.at(i).date, "xls", direction, namesFilesExp);
-        progress->setProgressCount(progress->getProgressCount() + progress->getPartProgress());
+        progress->nextPartProgress();
         PrintXMLToFile(xmlList.at(i), path);
     }
 }
@@ -588,7 +588,7 @@ void PrintController::PrintHTMLToPdf(const QString& fileName, const QList<QStrin
     printer.setOutputFileName(fileName);
     printer.setPageMargins(QMargins(0, 0, 0, 50));
 
-    QRegExp regExp("(\\/[A-Za-z0-9 ,\\.&\\$#№@':;\\{\\}\\[\\]\\(\\)\\*\\^\\%\\_\\-\\=]+\\.pdf)");
+    QRegExp regExp("(\\/[A-Za-z0-9А-Яа-я ,\\.&\\$#№@':;\\{\\}\\[\\]\\(\\)\\*\\^\\%\\_\\-\\=]+\\.pdf)");
     regExp.indexIn(fileName);
     int pos = regExp.pos();
     QString fileNamePath = "";
@@ -601,9 +601,9 @@ void PrintController::PrintHTMLToPdf(const QString& fileName, const QList<QStrin
     }
     else
     {
+        qDebug() << "Ошибка, имя файла не опознано";
         throw(std::logic_error("Ошибка, имя файла не опознано, if(pos > -1)"));
     }
-
 
     printDocument(printer, tablesInFile, tablesHTML, fileNamePath);
 }
@@ -618,7 +618,7 @@ void PrintController::PrintHTMLToPdfFiles(QList<QString> htmlFileNameList, QList
             return;
         }
         s_scenariosData = scenariosHashList.at(i);
-        progress->setProgressCount(progress->getProgressCount() + progress->getPartProgress());
+        progress->nextPartProgress();
         PrintHTMLToPdf(htmlFileNameList.at(i), tablesInFile[i], tablesHTMLInFiles.at(i));
     }
 }

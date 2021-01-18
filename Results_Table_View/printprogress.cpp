@@ -62,3 +62,9 @@ void PrintProgress::setXMLPDFNumber(int xmlPdfNumber)
 }
 
 
+void PrintProgress::nextPartProgress()
+{
+    setProgressCount(getProgressCount() + getPartProgress());
+}
+
+

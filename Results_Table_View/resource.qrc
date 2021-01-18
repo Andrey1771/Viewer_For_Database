@@ -3,5 +3,6 @@
         <file>clearButton.png</file>
         <file>database.png</file>
         <file>databaseExport.png</file>
+        <file>database.ico</file>
     </qresource>
 </RCC>

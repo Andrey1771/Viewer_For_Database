@@ -40,6 +40,7 @@ public:
     TypePrint getTypePrint();
     int getXMLPDFNumber();
     void setXMLPDFNumber(int xmlPdfNumber);
+    void nextPartProgress();
 private:
     TypePrint type;
 
