@@ -71,10 +71,32 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="lineEdit_Directory"/>
+        <widget class="QLineEdit" name="lineEdit_Directory">
+         <property name="whatsThis">
+          <string>&lt;strong&gt;Строка пути папки&lt;/strong&gt; куда будет производиться &lt;strong&gt;экспорт файлов&lt;/strong&gt;</string>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QPushButton" name="pushButtonSetPath_Directory">
+         <property name="minimumSize">
+          <size>
+           <width>28</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>28</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="whatsThis">
+          <string>&lt;strong&gt;Открывает&lt;/strong&gt; стандартное &lt;strong&gt;окно&lt;/strong&gt; операционной системы для &lt;strong&gt;выбора папки&lt;/strong&gt;</string>
+         </property>
+         <property name="accessibleName">
+          <string/>
+         </property>
          <property name="text">
           <string>...</string>
          </property>
@@ -107,7 +129,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="comboBox_ExportChanger"/>
+        <widget class="QComboBox" name="comboBox_ExportChanger">
+         <property name="whatsThis">
+          <string>&lt;strong&gt;Выбор типа&lt;/strong&gt; экспортируемых &lt;strong&gt;файлов&lt;/strong&gt;</string>
+         </property>
+        </widget>
        </item>
        <item>
         <spacer name="horizontalSpacer">
@@ -124,6 +150,21 @@
        </item>
        <item>
         <widget class="QPushButton" name="pushButton_AddRow">
+         <property name="minimumSize">
+          <size>
+           <width>34</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>28</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="whatsThis">
+          <string>&lt;strong&gt;Добавляет&lt;/strong&gt; один &lt;strong&gt;фильтр&lt;/strong&gt; &lt;strong&gt;в конец списка&lt;/strong&gt; фильтров</string>
+         </property>
          <property name="text">
           <string>+</string>
          </property>
@@ -131,6 +172,21 @@
        </item>
        <item>
         <widget class="QPushButton" name="pushButton_RemoveRow">
+         <property name="minimumSize">
+          <size>
+           <width>34</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>28</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="whatsThis">
+          <string>&lt;strong&gt;Удаляет&lt;/strong&gt; выбранные &lt;strong&gt;строчки фильтра &lt;/strong&gt;&lt;br&gt;Для этого &lt;strong&gt;перед нажатием&lt;/strong&gt; на эту кнопку &lt;strong&gt;необходимо выделить фильтры&lt;/strong&gt; нажатием и удерживанием левой клавиши мыши на &lt;strong&gt;строчках фильтров&lt;/strong&gt;, которые необходимо удалить</string>
+         </property>
          <property name="text">
           <string>-</string>
          </property>
@@ -156,7 +212,11 @@
         <number>2</number>
        </property>
        <item>
-        <widget class="PrintDialogTableView" name="tableView_Table"/>
+        <widget class="PrintDialogTableView" name="tableView_Table">
+         <property name="whatsThis">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Это &lt;strong&gt;Таблица со списком фильтров и их параметров&lt;/strong&gt;&lt;br/&gt;Для изменения выпадающих списков фильтра, необходимо &lt;strong&gt;2 раза нажать&lt;/strong&gt; на данный список до появления выпадающего списка&lt;br/&gt;Для изменения &lt;strong&gt;фильтрующей информации&lt;/strong&gt;(Последняя колонка) &lt;strong&gt;схожим образом&lt;/strong&gt;&lt;br/&gt;В колонке &lt;strong&gt;DB Table&lt;/strong&gt; выбирается таблица, записи которой будут &lt;strong&gt;отфильтрованы&lt;/strong&gt;, а в &lt;strong&gt;Column&lt;/strong&gt; выбирается &lt;strong&gt;имя колонки&lt;/strong&gt; из этой таблицы. Содержимое колонки &lt;strong&gt;«Filter»&lt;/strong&gt; будет искаться в каждой записи, соответствующей колонки и таблицы. &lt;strong&gt;При выборе&lt;/strong&gt; нескольких&lt;strong&gt; разных колонок&lt;/strong&gt; одной &lt;strong&gt;таблицы&lt;/strong&gt; применяется операция &lt;strong&gt;«Логическое И»&lt;/strong&gt;. При выборе &lt;strong&gt;одинаковых&lt;/strong&gt; &lt;strong&gt;«Логическое ИЛИ»&lt;/strong&gt;.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
@@ -179,6 +239,9 @@
        </property>
        <item>
         <widget class="QProgressBar" name="progressBar_Progress">
+         <property name="whatsThis">
+          <string>&lt;strong&gt;Статус бар&lt;/strong&gt;, показывает &lt;strong&gt;прогрес выполнения&lt;/strong&gt; печати файла&lt;br&gt;Когда &lt;strong&gt;печать&lt;/strong&gt; будет &lt;strong&gt;полностью завершена&lt;/strong&gt; появится &lt;strong&gt;всплывающая подсказка&lt;/strong&gt;</string>
+         </property>
          <property name="value">
           <number>0</number>
          </property>
@@ -215,6 +278,9 @@
        </property>
        <item>
         <widget class="QPushButton" name="pushButton_Cancel">
+         <property name="whatsThis">
+          <string>&lt;strong&gt;Закрывает окно&lt;/strong&gt; и &lt;strong&gt;завершает&lt;/strong&gt; выполнение &lt;strong&gt;печати&lt;/strong&gt;, если оно идет в данный момент</string>
+         </property>
          <property name="text">
           <string>Cancel</string>
          </property>
@@ -222,6 +288,9 @@
        </item>
        <item>
         <widget class="QPushButton" name="pushButton_Export">
+         <property name="whatsThis">
+          <string>Начинает &lt;strong&gt;печать файлов&lt;/strong&gt;</string>
+         </property>
          <property name="text">
           <string>Export</string>
          </property>

@@ -56,6 +56,7 @@ public slots:
     void dialogWarning(int countFiles);
     void messageFilePrinted(int type);
     void setLabelTypePrintFilePDF();
+    void slotHelpLinkClicked(const QString &);
 private:
     Ui::PrintDialog *ui;
     PrintProgress* progress{nullptr};
@@ -65,6 +66,10 @@ private:
     // QWidget interface
 protected:
     virtual void closeEvent(QCloseEvent *event) override;
+
+    // QObject interface
+public:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 };
 
 #endif // PRINTDIALOG_H

@@ -20,6 +20,12 @@
 
 #include <QDebug>
 
+#include <QWhatsThis>
+#include <QAction>
+#include <QToolTip>
+#include <QMenu>
+
+
 PrintDialog::PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel* model,
                          ProtocolPrinterHeaderView* header, QSqlDatabase& db, const QString& pathFile, QWidget *parent) :
     QDialog(parent),
@@ -58,6 +64,21 @@ PrintDialog::PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel* m
     ui->lineEdit_Directory->setText(lastPath);
 }
 
+void PrintDialog::slotHelpLinkClicked(const QString &)
+{
+    qDebug()<<" void NewMailNotifierSettingsDialog::slotHelpLinkClicked(const QString &)";
+    const QString help =
+            tr( "<qt>"
+                "<p>Here you can define message. "
+                "You can use:</p>"
+                "<ul>"
+                "<li>%s set subject</li>"
+                "<li>%f set from</li>"
+                "</ul>"
+                "</qt>" );
+
+    QWhatsThis::showText( QCursor::pos(), help );
+}
 PrintDialog::~PrintDialog()
 {
     qDebug() << "lastPath " << lastPath;
@@ -123,21 +144,21 @@ void PrintDialog::messageFilePrinted(int type)
     {
         QMessageBox::warning(nullptr, QObject::tr("Warning"),
                              QObject::tr("Excel printing completed\n"
-                                         "Click Cancel to exit."), QMessageBox::Cancel);
+                                         "Click Ok to exit."), QMessageBox::Ok);
         break;
     }
     case (TypePrint::PDF):
     {
         QMessageBox::warning(nullptr, QObject::tr("Warning"),
                              QObject::tr("PDF printing completed.\n"
-                                         "Click Cancel to exit."), QMessageBox::Cancel);
+                                         "Click Ok to exit."), QMessageBox::Ok);
         break;
     }
     case (TypePrint::XMLPDF):
     {
         QMessageBox::warning(nullptr, QObject::tr("Warning"),
                              QObject::tr("Excel and PDF printing completed.\n"
-                                         "Click Cancel to exit."), QMessageBox::Cancel);
+                                         "Click Ok to exit."), QMessageBox::Ok);
         break;
     }
     }
@@ -229,4 +250,13 @@ void PrintDialog::closeEvent(QCloseEvent */*event*/)
         lastPath = lineStr;
 }
 
-
+bool PrintDialog::eventFilter(QObject *watched, QEvent *event)
+{
+    qDebug() << event;
+    if(event->type() == QEvent::WhatsThis)
+    {
+        //watched
+        qDebug() << "TYTYTY";
+    }
+    return QDialog::eventFilter(watched, event);
+}
