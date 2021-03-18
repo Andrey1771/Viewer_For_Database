@@ -17,8 +17,6 @@
 #include <CollectionFromJsonLoader.h>
 #include <CollectionToJsonSaver.h>
 
-#include <QDebug>
-
 //Test
 //#include "randomizeddatabase.h"
 
@@ -79,6 +77,10 @@ MainWindow::~MainWindow()
 
 void MainWindow::launchSetSettings()
 {
+    //LanguageSettings
+    ui->LanguageSettings_comboBox->addItems(supportedLanguages.keys());
+    //LanguageSettings
+
     //icon
     QPixmap map("://new//prefix1//database.png");
     this->setWindowIcon(QIcon(map));
@@ -131,18 +133,17 @@ void MainWindow::launchSetSettings()
     //TableView_Sup
 
     //labels
-    ui->Connect_label->setText("Connected to \"" + newModel->model->database().databaseName().remove("."+ui->DBType_comboBox->currentText()) + "\" database");
+    ui->Connect_label->setText(tr("Connected to \"") + newModel->model->database().databaseName().remove("."+ui->DBType_comboBox->currentText()) + tr("\" database"));
 
     //connect database
     QString str = loadDb();
-    qDebug() << "PathDb" << str;
     if(!createConnection(str))
     {
     }
     else
     {
         addDatabase();
-        ui->groupBoxTable->setTitle("Table: " + newModel->model->tableName());
+        ui->groupBoxTable->setTitle(tr("Table: ") + newModel->model->tableName());
         //lineEdit
         ui->Directory_lineEdit->setText(newModel->model->database().databaseName());
 
@@ -164,10 +165,17 @@ void MainWindow::launchSetSettings()
     connect(filter, &QHeaderView::sectionClicked, this, &MainWindow::colomnNewModelFilter);
     connect(filter_Sup, &QHeaderView::sectionClicked, this, &MainWindow::colomnModelFilter);
     
+    connect(ui->LanguageSettings_comboBox, static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
+            [=](const QString &str){
+        qLangTranslator.load(supportedLanguages.value(str));
+        qApp->installTranslator(&qLangTranslator);
+    });
+
+    // Сделаем первоначальную инициализацию перевода для окна прилоежния
+    qLangTranslator.load(supportedLanguages.value("EN"));
+    qApp->installTranslator(&qLangTranslator);
 
     exportDataForSaver.pathFile = loadPathExportDialog();
-
-
 }
 
 void MainWindow::ProxyNewModelLoad()
@@ -188,7 +196,6 @@ void MainWindow::ProxyModelSupLoad()
 void MainWindow::colomnNewModelFilter(int logicalIndex)
 {
     newModel->magicAllLoad();
-    qDebug() << "sortTypeNewModel " << sortTypeNewModelList << logicalIndex;
     if(sortTypeNewModelList.at(logicalIndex))
     {
         ui->tableView->sortByColumn(logicalIndex, Qt::SortOrder::AscendingOrder);
@@ -252,9 +259,9 @@ void MainWindow::addDatabase()
     //TableView
     ui->TableName_comboBox->setCurrentText(Names[numberTable]);
     if(newModel->model->database().databaseName().lastIndexOf("/") != -1)
-        ui->Connect_label->setText("Connected to \"" +  (newModel->model->database().databaseName().remove(0, newModel->model->database().databaseName().lastIndexOf("/")+1)).remove("."+ui->DBType_comboBox->currentText()) + "\" database");
+        ui->Connect_label->setText(tr("Connected to \"") +  (newModel->model->database().databaseName().remove(0, newModel->model->database().databaseName().lastIndexOf("/")+1)).remove("."+ui->DBType_comboBox->currentText()) + tr("\" database"));
     else
-        ui->Connect_label->setText("Connected to \"" + newModel->model->database().databaseName().remove("."+ui->DBType_comboBox->currentText()) + "\" database");
+        ui->Connect_label->setText(tr("Connected to \"") + newModel->model->database().databaseName().remove("."+ui->DBType_comboBox->currentText()) + tr("\" database"));
     ui->tableView->setModel(newModel);
 
     hideColumnsModels();
@@ -500,9 +507,9 @@ void MainWindow::disconnect()
 
             ui->TableName_comboBox->clear();
             Names.clear();
-            ui->Connect_label->setText("Connected to \"\" database");
+            ui->Connect_label->setText(tr("Connected to \"\" database"));
             ui->Directory_lineEdit->setText("");
-            ui->groupBoxTable->setTitle("Table:");
+            ui->groupBoxTable->setTitle(tr("Table:"));
             savePathDb(databaseName);
 
         }
@@ -510,8 +517,6 @@ void MainWindow::disconnect()
 
 void MainWindow::onFileMenuActionTriggered(QAction *action)
 {
-    qDebug() << "action triggered: " << action->text();
-
     /// TODO: make actions property
 
     if (action->text() == tr("Open DB"))
@@ -539,11 +544,9 @@ void MainWindow::onExportDBAction()
         return;
     if(newModel == nullptr || modelSup == nullptr || filter == nullptr || !db.isOpen())
     {
-        qDebug() << "onExportDbAction error";
         return;
     }
     QList<QString> namesTables = getNamesTables();
-    qDebug() << "NAMES TABLES: " << namesTables;
     namesTables.removeOne("sqlite_sequence");/// TODO Перенести с глобальными переменными
 
     PrintDialog* printDialog = new PrintDialog(namesTables, modelSup, filter, db, exportDataForSaver.pathFile, this);
@@ -568,4 +571,13 @@ const QString MainWindow::loadPathExportDialog()
 void MainWindow::onQuitAction()
 {
     close();
+}
+
+
+void MainWindow::changeEvent(QEvent *event)
+{
+    // В случае получения события изменения языка приложения
+    if (event->type() == QEvent::LanguageChange) {
+        ui->retranslateUi(this);    // переведём окно заново
+    }
 }

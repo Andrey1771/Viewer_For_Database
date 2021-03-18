@@ -10,6 +10,7 @@
 #include "protocolprintertableview.h"
 
 #include <QFileDialog>
+#include <QDesktopServices>
 #include <QMessageBox>
 #include <QtConcurrent/QtConcurrentRun>
 #include <QFutureWatcher>
@@ -17,14 +18,6 @@
 #include <ICollection.h>
 #include <CollectionFromJsonLoader.h>
 #include <CollectionToJsonSaver.h>
-
-#include <QDebug>
-
-#include <QWhatsThis>
-#include <QAction>
-#include <QToolTip>
-#include <QMenu>
-
 
 PrintDialog::PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel* model,
                          ProtocolPrinterHeaderView* header, QSqlDatabase& db, const QString& pathFile, QWidget *parent) :
@@ -59,29 +52,14 @@ PrintDialog::PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel* m
 
     connect(ui->pushButton_Export, &QPushButton::clicked, this, &PrintDialog::onExport);
     connect(ui->pushButtonSetPath_Directory, &QPushButton::clicked, this, &PrintDialog::launchFilePathWizard);
+    connect(ui->pushButton_ToFolder, &QPushButton::clicked, this, &PrintDialog::onToFolder);
 
     lastPath = pathFile;
     ui->lineEdit_Directory->setText(lastPath);
 }
 
-void PrintDialog::slotHelpLinkClicked(const QString &)
-{
-    qDebug()<<" void NewMailNotifierSettingsDialog::slotHelpLinkClicked(const QString &)";
-    const QString help =
-            tr( "<qt>"
-                "<p>Here you can define message. "
-                "You can use:</p>"
-                "<ul>"
-                "<li>%s set subject</li>"
-                "<li>%f set from</li>"
-                "</ul>"
-                "</qt>" );
-
-    QWhatsThis::showText( QCursor::pos(), help );
-}
 PrintDialog::~PrintDialog()
 {
-    qDebug() << "lastPath " << lastPath;
     if(progress != nullptr)
         progress->watcher.waitForFinished();
     delete ui;
@@ -100,7 +78,6 @@ void PrintDialog::onAddRow()
 void PrintDialog::onRemoveRow()
 {
     QModelIndexList modelIndexList = ui->tableView_Table->getSelectedIndex();
-    qDebug() << "QModelInd " << ui->tableView_Table->getSelectedIndex();
     if(!modelIndexList.isEmpty())
         printDialogItemModel->removeRows(modelIndexList.first().row(), modelIndexList.size() / 3 /*делим на 3, тк, возможно, делегаты дублируют выделенные строки или колонки, TODO FIX*/, QModelIndex());
 }
@@ -130,10 +107,8 @@ void PrintDialog::dialogWarning(int countFiles)
         QMessageBox::warning(nullptr, QObject::tr("Warning"),
                              QObject::tr("The list of files to print is empty\n"
                                          "Click Cancel to exit."), QMessageBox::Cancel);
-        qDebug() << "Файлов нет!";
         return;
     }
-    qDebug() << "Количество файлов: " << countFiles;
 }
 
 void PrintDialog::messageFilePrinted(int type)
@@ -167,7 +142,7 @@ void PrintDialog::messageFilePrinted(int type)
 
 void PrintDialog::setLabelTypePrintFilePDF()
 {
-    ui->label_TypePrintFileProgress->setText("PDF is printed");
+    ui->label_TypePrintFileProgress->setText(tr("PDF is printed"));
 }
 
 void PrintDialog::onExport()
@@ -201,27 +176,26 @@ void PrintDialog::onExport()
     {
         qDebug() << "FiltersMemory: " << printDialogItemModel->getFiltersMemory();
         progress->setTypePrint(TypePrint::XMLPDF);
-        ui->label_TypePrintFileProgress->setText("Excel is printed");
+        ui->label_TypePrintFileProgress->setText(tr("Excel is printed"));
         PrintController::onExportDBAction(*db, "PDF + XML", dir.path(), progress, printDialogItemModel->getFiltersMemory());
         break;
     }
     case(1)://PDF
     {
         progress->setTypePrint(TypePrint::PDF);
-        ui->label_TypePrintFileProgress->setText("PDF is printed");
+        ui->label_TypePrintFileProgress->setText(tr("PDF is printed"));
         PrintController::onExportDBAction(*db, "PDF", dir.path(), progress, printDialogItemModel->getFiltersMemory());
         break;
     }
     case(2)://XML
     {
         progress->setTypePrint(TypePrint::XML);
-        ui->label_TypePrintFileProgress->setText("Excel is printed");
+        ui->label_TypePrintFileProgress->setText(tr("Excel is printed"));
         PrintController::onExportDBAction(*db, "XML", dir.path(), progress, printDialogItemModel->getFiltersMemory());
         break;
     }//11/1/2000 9:11:04 - 05/2/2033 12:11:26 9:11:04
     default:
     {
-        qDebug() << "Такого экспорта пока нет";
         break;
     }
     }
@@ -230,6 +204,11 @@ void PrintDialog::onExport()
 void PrintDialog::onCancel()
 {
     close();
+}
+
+void PrintDialog::onToFolder()
+{
+    QDesktopServices::openUrl(QUrl::fromLocalFile(ui->lineEdit_Directory->text()));
 }
 
 void PrintDialog::launchFilePathWizard()
@@ -248,15 +227,4 @@ void PrintDialog::closeEvent(QCloseEvent */*event*/)
     QString lineStr = ui->lineEdit_Directory->text();
     if(lineStr != "")
         lastPath = lineStr;
-}
-
-bool PrintDialog::eventFilter(QObject *watched, QEvent *event)
-{
-    qDebug() << event;
-    if(event->type() == QEvent::WhatsThis)
-    {
-        //watched
-        qDebug() << "TYTYTY";
-    }
-    return QDialog::eventFilter(watched, event);
 }

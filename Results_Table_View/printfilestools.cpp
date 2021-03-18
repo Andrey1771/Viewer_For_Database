@@ -117,16 +117,16 @@ QList<QString> TablesCaption()
 
 void sorterNames(QList<QString>& names)
 {
-    struct MagicCPP
+    struct NameStruct
     {
         QList<int> numbList;
         QString name;
-        MagicCPP(const QString& name, QList<int>& numbList)
+        NameStruct(const QString& name, QList<int>& numbList)
         {
             this->numbList = numbList;
             this->name = name;
         }
-        bool operator<(const MagicCPP& right)// используется неявно в std::sort!!!
+        bool operator<(const NameStruct& right)// используется неявно в std::sort!!!
         {
             int i = 0;
             if(right.numbList.size() != 0)
@@ -158,7 +158,7 @@ void sorterNames(QList<QString>& names)
         }
     };
 
-    std::vector<MagicCPP> magicCPPVect;
+    std::vector<NameStruct> nameStructVect;
     QRegExp regExp("[0-9]{1,}.[0-9]{1,}.[0-9]{1,}");
     for (auto name : names)
     {
@@ -173,16 +173,16 @@ void sorterNames(QList<QString>& names)
             {
                 numbList.push_back(number.toInt());
             }
-            magicCPPVect.push_back(MagicCPP(name, numbList));
+            nameStructVect.push_back(NameStruct(name, numbList));
         }
         else
         {
-            magicCPPVect.push_back(MagicCPP(name, numbList));
+            nameStructVect.push_back(NameStruct(name, numbList));
         }
     }
-    std::sort(magicCPPVect.begin(), magicCPPVect. end());
+    std::sort(nameStructVect.begin(), nameStructVect. end());
     names.clear();
-    for (auto var : magicCPPVect)
+    for (auto var : nameStructVect)
     {
         names.push_back(var.name);
     }

@@ -23,7 +23,7 @@ class PrintDialog : public QDialog
     const QList<QString> exportTypes{"PDF + Excel", "PDF", "Excel"};
 public:
     explicit PrintDialog(QList<QString> namesTables, ProtocolPrinterItemModel *model, ProtocolPrinterHeaderView *header, QSqlDatabase& db, const QString &pathFile, QWidget *parent = nullptr);
-    ~PrintDialog();
+    ~PrintDialog() override;
 
     struct DataForSaver
     {
@@ -49,6 +49,7 @@ public slots:
     void onRemoveRow();
     void onExport();
     void onCancel();
+    void onToFolder();
     void launchFilePathWizard();
     void progressBarSetVal(float val);
     void finishedWork();
@@ -56,7 +57,6 @@ public slots:
     void dialogWarning(int countFiles);
     void messageFilePrinted(int type);
     void setLabelTypePrintFilePDF();
-    void slotHelpLinkClicked(const QString &);
 private:
     Ui::PrintDialog *ui;
     PrintProgress* progress{nullptr};
@@ -66,10 +66,6 @@ private:
     // QWidget interface
 protected:
     virtual void closeEvent(QCloseEvent *event) override;
-
-    // QObject interface
-public:
-    bool eventFilter(QObject *watched, QEvent *event) override;
 };
 
 #endif // PRINTDIALOG_H

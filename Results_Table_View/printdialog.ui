@@ -102,6 +102,19 @@
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_ToFolder">
+         <property name="maximumSize">
+          <size>
+           <width>28</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>-&gt;</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>

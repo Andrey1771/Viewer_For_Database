@@ -5,6 +5,7 @@
 //#include "qsqlfield.h"
 
 #include <QMainWindow>
+#include <QTranslator>
 #include <QtSql/QSqlDatabase>
 #include "printdialog.h"
 
@@ -42,6 +43,7 @@ public slots:
     //XML
 private:
     Ui::MainWindow *ui {nullptr};
+    QTranslator qLangTranslator;
 
     bool dbIsOpen(QSqlDatabase& db);
 
@@ -83,6 +85,7 @@ private:
     QSqlDatabase db;
     const QStringList hidenColNewModelList {/*"Session ID", "Project Name", "LRU Name", "LRU S/N", "ATE P/N", "ATE S/N", "ATE S/W Ver"*/};
     const QStringList hidenColModelSupList {/*"Session ID", "Project Name", "LRU Name", "LRU S/N", "ATE P/N", "ATE S/N", "ATE S/W Ver"*/};
+    const QMap<QString, QString> supportedLanguages { {"EN", ":/translations/english.qm"}, {"RU", ":/translations/russian.qm"}};
 
     PrintDialog::DataForSaver exportDataForSaver;
     QVariantHash c;
@@ -93,6 +96,10 @@ public slots:
 private slots:
     void colomnNewModelFilter(int logicalIndex);
     void colomnModelFilter(int logicalIndex);
+
+    // QWidget interface
+protected:
+    void changeEvent(QEvent *event) override;
 };
 
 #endif // MAINWINDOW_H
