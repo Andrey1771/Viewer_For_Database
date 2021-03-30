@@ -16,8 +16,11 @@ file(GLOB_RECURSE UIS LIST_DIRECTORIES false *.ui)
 file(GLOB_RECURSE RESOURCE LIST_DIRECTORIES false *.qrc)
 
 #set_source_files_properties(${QM_FILES} PROPERTIES OUTPUT_LOCATION "translations")
-qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} english.ts russian.ts)
 
+include(${CMAKE_SOURCE_DIR}/projects/translations_helper.cmake)
+#qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} english.ts russian.ts)
+
+create_and_update_translations(TRANSLATIONS ${HEADERS} ${SOURCES} ${UIS} ${RESOURCE} ${LANGUAGES} OPTIONS -locations none -silent ${LUPDATE_ADDITIONAL_OPTION})
 
 #configure_file(translations.qrc ${CMAKE_BINARY_DIR} COPYONLY)
 add_executable(${PROJECT_NAME} WIN32 ${HEADERS}
@@ -26,8 +29,9 @@ add_executable(${PROJECT_NAME} WIN32 ${HEADERS}
     ${UIS}
     ${UICS}
     ${APP_ICON_RESOURCE_WINDOWS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/translations.qrc
-    ${QM_FILES})
+#    ${CMAKE_CURRENT_SOURCE_DIR}/translations.qrc
+    ${QM_FILES}
+    ${TRANSLATIONS})
 target_link_libraries(${PROJECT_NAME} PUBLIC Qt5::Core Qt5::Widgets Qt5::Sql Qt5::PrintSupport Qt5::Test )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -35,6 +39,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     )
 
+install(FILES ${TRANSLATIONS} DESTINATION bin/translations)
 
 
 

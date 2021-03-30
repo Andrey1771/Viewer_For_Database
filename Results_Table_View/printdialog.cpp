@@ -213,7 +213,8 @@ void PrintDialog::onToFolder()
 
 void PrintDialog::launchFilePathWizard()
 {
-    QString strPath = QFileDialog::getExistingDirectory(nullptr, QObject::tr("Path to file save"), QString());
+    QString strPath = QFileDialog::getExistingDirectory(nullptr, QObject::tr("Path to file save"), lastPath);
+    lastPath = strPath;
     ui->lineEdit_Directory->setText(strPath);
 }
 

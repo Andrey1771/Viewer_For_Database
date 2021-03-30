@@ -26,6 +26,7 @@
 #include <QAction>
 #include <QScrollBar>
 #include <QTimer>
+#include <QDesktopServices>
 
 #include <QtConcurrent/QtConcurrentRun>
 #include <QSortFilterProxyModel>
@@ -37,7 +38,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->setupUi(this);
     launchSetSettings();
 
-    connect(ui->menuFile, &QMenu::triggered, this, &MainWindow::onFileMenuActionTriggered);
 
     QVariantHash c;
     c.insert("path_to_db", "...");
@@ -170,6 +170,9 @@ void MainWindow::launchSetSettings()
         qLangTranslator.load(supportedLanguages.value(str));
         qApp->installTranslator(&qLangTranslator);
     });
+
+    connect(ui->menuFile, &QMenu::triggered, this, &MainWindow::onFileMenuActionTriggered);
+    connect(ui->menuHelp, &QMenu::triggered, this, &MainWindow::onMenuHelpActionTriggered);
 
     // Сделаем первоначальную инициализацию перевода для окна прилоежния
     qLangTranslator.load(supportedLanguages.value("EN"));
@@ -531,6 +534,17 @@ void MainWindow::onFileMenuActionTriggered(QAction *action)
     {
         onQuitAction();
     }
+
+}
+
+void MainWindow::onMenuHelpActionTriggered(QAction* action)
+{
+    /// TODO: make actions property
+
+    if (action->text() == tr("Documentation"))
+    {
+        onDocumentationAction();
+    }
 }
 
 void MainWindow::onOpenDBAction()
@@ -573,6 +587,10 @@ void MainWindow::onQuitAction()
     close();
 }
 
+void MainWindow::onDocumentationAction()
+{
+    QDesktopServices::openUrl(QUrl("doc.docx"));
+}
 
 void MainWindow::changeEvent(QEvent *event)
 {

@@ -57,6 +57,7 @@ public slots:
     void dialogWarning(int countFiles);
     void messageFilePrinted(int type);
     void setLabelTypePrintFilePDF();
+
 private:
     Ui::PrintDialog *ui;
     PrintProgress* progress{nullptr};

@@ -37,9 +37,11 @@ public slots:
 
     //XML
     void onFileMenuActionTriggered(QAction* action);
+    void onMenuHelpActionTriggered(QAction* action);
     void onOpenDBAction();
     void onExportDBAction();
     void onQuitAction();
+    void onDocumentationAction();
     //XML
 private:
     Ui::MainWindow *ui {nullptr};
