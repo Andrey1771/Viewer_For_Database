@@ -16,7 +16,7 @@ file(GLOB_RECURSE UIS LIST_DIRECTORIES false *.ui)
 file(GLOB_RECURSE RESOURCE LIST_DIRECTORIES false *.qrc)
 
 #set_source_files_properties(${QM_FILES} PROPERTIES OUTPUT_LOCATION "translations")
-#qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} english.ts russian.ts)
+qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} english.ts russian.ts)
 
 
 #configure_file(translations.qrc ${CMAKE_BINARY_DIR} COPYONLY)
@@ -72,8 +72,5 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 #)
 
 #install(FILES ${TRANSLATIONS} DESTINATION bin/translations)
-
-
-
 
 

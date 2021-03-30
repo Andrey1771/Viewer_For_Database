@@ -110,6 +110,9 @@
            <height>16777215</height>
           </size>
          </property>
+         <property name="whatsThis">
+          <string>Go to &lt;strong&gt;folder&lt;/strong&gt;</string>
+         </property>
          <property name="text">
           <string>-&gt;</string>
          </property>
