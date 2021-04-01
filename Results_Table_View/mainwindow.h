@@ -87,7 +87,8 @@ private:
     QSqlDatabase db;
     const QStringList hidenColNewModelList {/*"Session ID", "Project Name", "LRU Name", "LRU S/N", "ATE P/N", "ATE S/N", "ATE S/W Ver"*/};
     const QStringList hidenColModelSupList {/*"Session ID", "Project Name", "LRU Name", "LRU S/N", "ATE P/N", "ATE S/N", "ATE S/W Ver"*/};
-    const QMap<QString, QString> supportedLanguages { {"EN", ":/translations/english.qm"}, {"RU", ":/translations/russian.qm"}};
+    const QString projectName {"Results_Table_View"};
+    const QMap<QString, QString> supportedLanguages { {"EN", projectName + "_en.qm"}, {"RU", projectName + "_ru.qm"}};//language:path
 
     PrintDialog::DataForSaver exportDataForSaver;
     QVariantHash c;

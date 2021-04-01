@@ -174,7 +174,7 @@ void MainWindow::launchSetSettings()
     connect(ui->menuFile, &QMenu::triggered, this, &MainWindow::onFileMenuActionTriggered);
     connect(ui->menuHelp, &QMenu::triggered, this, &MainWindow::onMenuHelpActionTriggered);
 
-    // Сделаем первоначальную инициализацию перевода для окна прилоежния
+    // Первоначальная инициализация перевода для окна прилоежния
     qLangTranslator.load(supportedLanguages.value("EN"));
     qApp->installTranslator(&qLangTranslator);
 
